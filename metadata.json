@@ -1,0 +1,7 @@
+{
+  "name": "HamsterPi",
+  "description": "HamsterPi: Premium Pi Network Gaming Ecosystem. TAP. PLAY. UPGRADE. RULE THE PI WORLD.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
