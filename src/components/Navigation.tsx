@@ -1,9 +1,9 @@
 import React from 'react';
-import { Home, Gamepad2, ArrowUpCircle, CheckSquare, User } from 'lucide-react';
+import { Home, Gamepad2, ArrowUpCircle, CheckSquare, User, Globe } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { translations } from '../services/i18n';
 
-export type TabType = 'home' | 'games' | 'upgrades' | 'missions' | 'profile';
+export type TabType = 'home' | 'upgrades' | 'projects' | 'games' | 'missions' | 'profile';
 
 interface NavigationProps {
   currentTab: TabType;
@@ -21,34 +21,39 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onSelectTab 
     {
       id: 'home',
       label: t.nav.home,
-      icon: <Home className="w-5 h-5" />,
-    },
-    {
-      id: 'games',
-      label: t.nav.games,
-      icon: <Gamepad2 className="w-5 h-5" />,
+      icon: <Home className="w-4 h-4" />,
     },
     {
       id: 'upgrades',
       label: t.nav.upgrades,
-      icon: <ArrowUpCircle className="w-5 h-5" />,
+      icon: <ArrowUpCircle className="w-4 h-4" />,
+    },
+    {
+      id: 'projects',
+      label: t.nav.projects,
+      icon: <Globe className="w-4 h-4 text-cyan-300" />,
+    },
+    {
+      id: 'games',
+      label: t.nav.games,
+      icon: <Gamepad2 className="w-4 h-4" />,
     },
     {
       id: 'missions',
       label: t.nav.missions,
-      icon: <CheckSquare className="w-5 h-5" />,
+      icon: <CheckSquare className="w-4 h-4" />,
       badge: hasClaimableMission,
     },
     {
       id: 'profile',
       label: t.nav.profile,
-      icon: <User className="w-5 h-5" />,
+      icon: <User className="w-4 h-4" />,
     },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/90 backdrop-blur-xl border-t border-slate-800/80 pb-safe">
-      <div className="max-w-md mx-auto grid grid-cols-5 h-16 items-center px-1">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-slate-800/80 pb-safe">
+      <div className="max-w-md mx-auto grid grid-cols-6 h-16 items-center px-1">
         {tabs.map((tab) => {
           const isActive = currentTab === tab.id;
           return (

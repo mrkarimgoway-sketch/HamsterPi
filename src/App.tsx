@@ -5,6 +5,7 @@ import { Navigation, TabType } from './components/Navigation';
 import { HomeScreen } from './components/screens/HomeScreen';
 import { GamesScreen } from './components/screens/GamesScreen';
 import { UpgradesScreen } from './components/screens/UpgradesScreen';
+import { ProjectsScreen } from './components/screens/ProjectsScreen';
 import { MissionsScreen } from './components/screens/MissionsScreen';
 import { ProfileScreen } from './components/screens/ProfileScreen';
 import { LeaderboardModal } from './components/modals/LeaderboardModal';
@@ -12,6 +13,7 @@ import { ReferralsModal } from './components/modals/ReferralsModal';
 import { AdminModal } from './components/modals/AdminModal';
 import { SettingsModal } from './components/modals/SettingsModal';
 import { OfflineEarningsModal } from './components/modals/OfflineEarningsModal';
+import { PiStoreModal } from './components/modals/PiStoreModal';
 
 function GameContent() {
   const [currentTab, setCurrentTab] = useState<TabType>('home');
@@ -19,6 +21,7 @@ function GameContent() {
   const [showReferrals, setShowReferrals] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPiStore, setShowPiStore] = useState(false);
 
   return (
     <div className="relative min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950">
@@ -36,6 +39,7 @@ function GameContent() {
           onOpenSettings={() => setShowSettings(true)}
           onOpenLeaderboard={() => setShowLeaderboard(true)}
           onOpenReferrals={() => setShowReferrals(true)}
+          onOpenPiStore={() => setShowPiStore(true)}
         />
 
         {/* Dynamic Screen View */}
@@ -48,10 +52,16 @@ function GameContent() {
             />
           )}
           {currentTab === 'games' && <GamesScreen />}
-          {currentTab === 'upgrades' && <UpgradesScreen />}
+          {currentTab === 'upgrades' && (
+            <UpgradesScreen onOpenPiStore={() => setShowPiStore(true)} />
+          )}
+          {currentTab === 'projects' && <ProjectsScreen />}
           {currentTab === 'missions' && <MissionsScreen />}
           {currentTab === 'profile' && (
-            <ProfileScreen onOpenAdmin={() => setShowAdmin(true)} />
+            <ProfileScreen
+              onOpenAdmin={() => setShowAdmin(true)}
+              onOpenPiStore={() => setShowPiStore(true)}
+            />
           )}
         </main>
 
@@ -68,6 +78,7 @@ function GameContent() {
       )}
       {showAdmin && <AdminModal onClose={() => setShowAdmin(false)} />}
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showPiStore && <PiStoreModal onClose={() => setShowPiStore(false)} />}
       <OfflineEarningsModal />
     </div>
   );

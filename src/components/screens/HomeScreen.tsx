@@ -152,6 +152,19 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
       </div>
 
+      {/* Active Booster Indicator */}
+      {stats.activeBoosterExpiresAt && Date.now() < stats.activeBoosterExpiresAt && (
+        <div className="w-full mb-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-600/30 to-amber-500/20 border border-amber-400/50 flex items-center justify-between text-xs font-bold text-amber-300 animate-pulse">
+          <div className="flex items-center gap-1.5">
+            <Zap className="w-4 h-4 fill-amber-400" />
+            <span>{stats.activeBoosterMultiplier}x Hyper Booster Active!</span>
+          </div>
+          <span className="text-[10px] font-mono text-purple-200">
+            {Math.max(1, Math.round((stats.activeBoosterExpiresAt - Date.now()) / (1000 * 60)))}m left
+          </span>
+        </div>
+      )}
+
       {/* Main Interactive Hamster Character */}
       <div className="relative flex-1 flex flex-col items-center justify-center my-auto py-2 w-full">
         {/* Combo Indicator */}

@@ -37,6 +37,8 @@ export interface PlayerStats {
   minigamesPlayed: number;
   highestMinigameScore: number;
   referralCount: number;
+  activeBoosterMultiplier?: number;
+  activeBoosterExpiresAt?: number;
 }
 
 export interface PlayerBalance {
@@ -51,9 +53,41 @@ export interface EnergyState {
   regenRatePerSec: number;
 }
 
+export type UpgradeCategory =
+  | 'tap_power'
+  | 'passive_income'
+  | 'energy_capacity'
+  | 'energy_recovery'
+  | 'golden_seeds'
+  | 'turbo_boost'
+  | 'critical_tap'
+  | 'production_machines'
+  | 'special_lab'
+  | 'combo_mastery'
+  | 'auto_collector'
+  | 'golden_touch'
+  | 'power_core'
+  | 'lucky_reactor'
+  | 'hamster'
+  | 'business'
+  | 'special';
+
+export type UpgradeBenefitType =
+  | 'tap_power'
+  | 'passive_per_sec'
+  | 'max_energy'
+  | 'regen_rate'
+  | 'crit_chance'
+  | 'crit_multiplier'
+  | 'seed_harvest_rate'
+  | 'boost_duration_sec'
+  | 'production_efficiency'
+  | 'lucky_bonus_chance'
+  | 'combo_yield_multiplier';
+
 export interface UpgradeItem {
   id: string;
-  category: 'hamster' | 'business' | 'special';
+  category: UpgradeCategory;
   name: string;
   nameAr: string;
   description: string;
@@ -62,9 +96,11 @@ export interface UpgradeItem {
   baseCost: number;
   costMultiplier: number;
   baseBenefit: number;
-  benefitType: 'tap_power' | 'passive_per_sec' | 'max_energy' | 'regen_rate' | 'crit_chance';
+  benefitType: UpgradeBenefitType;
   currentLevel: number;
   minPlayerLevel: number;
+  maxLevel?: number;
+  costCurrency?: 'points' | 'seeds';
   unlockedSkin?: HamsterSkin;
 }
 
@@ -120,4 +156,15 @@ export interface TapFloatingText {
   x: number;
   y: number;
   isCrit?: boolean;
+}
+
+export interface PaymentTransactionRecord {
+  id: string;
+  pi_payment_id: string;
+  amount: number;
+  memo: string;
+  product_id?: string;
+  status: 'INITIALIZED' | 'READY_FOR_APPROVAL' | 'APPROVED' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+  server_txid?: string;
+  created_at: string;
 }

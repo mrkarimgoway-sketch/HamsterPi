@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Shield, Sparkles, Settings as SettingsIcon } from 'lucide-react';
+import { Volume2, VolumeX, Shield, Sparkles, Settings as SettingsIcon, ShoppingBag } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { translations } from '../services/i18n';
 import { HAMSTER_SKINS } from '../data/initialData';
@@ -8,12 +8,14 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onOpenLeaderboard: () => void;
   onOpenReferrals: () => void;
+  onOpenPiStore: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onOpenLeaderboard,
   onOpenReferrals,
+  onOpenPiStore,
 }) => {
   const { language, profile, balance, stats, isMuted, toggleSound } = useGame();
   const t = translations[language];
@@ -61,24 +63,23 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Global Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Pi Store Button */}
+          <button
+            onClick={onOpenPiStore}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-gradient-to-r from-purple-900/60 to-purple-800/40 border border-purple-500/50 hover:border-purple-400 text-xs font-bold text-purple-200 transition-colors shadow-sm shadow-purple-900/20"
+            title={t.piStore.title}
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-amber-300" />
+            <span className="font-mono text-amber-300">π Shop</span>
+          </button>
+
           {/* Quick Rank Button */}
           <button
             onClick={onOpenLeaderboard}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-200 transition-colors"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-900 border border-slate-800 hover:border-amber-500/40 text-xs font-semibold text-slate-200 transition-colors"
             title={t.nav.leaderboard}
           >
             <span className="text-amber-400">🏆</span>
-            <span className="hidden sm:inline">{t.nav.leaderboard}</span>
-          </button>
-
-          {/* Quick Invite Button */}
-          <button
-            onClick={onOpenReferrals}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-950/40 border border-purple-800/50 hover:border-purple-500 text-xs font-semibold text-purple-200 transition-colors"
-            title={t.nav.referrals}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden sm:inline">+{stats.referralCount}</span>
           </button>
 
           {/* Sound Mute Toggle */}
