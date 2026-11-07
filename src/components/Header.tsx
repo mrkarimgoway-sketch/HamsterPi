@@ -31,9 +31,15 @@ export const Header: React.FC<HeaderProps> = ({
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="relative shrink-0">
             <img
-              src={skinInfo.image}
+              src={skinInfo.image || '/images/hamster_mascot_default_1793717666154.jpg'}
               alt="Hamster Avatar"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.src.includes('/images/')) {
+                  target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                }
+              }}
               className="w-10 h-10 rounded-full border-2 border-amber-500/60 object-cover shadow-sm shadow-amber-500/20"
             />
             {profile.isPiConnected && (

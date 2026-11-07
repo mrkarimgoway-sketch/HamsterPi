@@ -189,9 +189,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             } ${energy.current <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'cursor-pointer active:scale-90'}`}
           >
             <img
-              src={skin.image}
+              src={skin.image || '/images/hamster_mascot_default_1793717666154.jpg'}
               alt={skin.name}
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.src.includes('/images/')) {
+                  target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                }
+              }}
               className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
 

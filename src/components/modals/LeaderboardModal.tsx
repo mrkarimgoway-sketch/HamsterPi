@@ -79,9 +79,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
               <div className="flex flex-col items-center">
                 <div className="relative mb-2">
                   <img
-                    src={HAMSTER_SKINS[topThree[1].skin]?.image || HAMSTER_SKINS.default.image}
+                    src={HAMSTER_SKINS[topThree[1].skin]?.image || '/images/hamster_mascot_default_1793717666154.jpg'}
                     alt={topThree[1].username}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      if (!target.src.includes('/images/')) {
+                        target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                      }
+                    }}
                     className="w-12 h-12 rounded-full border-2 border-slate-400 object-cover shadow-md"
                   />
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-slate-300">
@@ -105,9 +111,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
               <div className="flex flex-col items-center -mt-4">
                 <div className="relative mb-2">
                   <img
-                    src={HAMSTER_SKINS[topThree[0].skin]?.image || HAMSTER_SKINS.king.image}
+                    src={HAMSTER_SKINS[topThree[0].skin]?.image || '/images/hamster_mascot_king_1793717667076.jpg'}
                     alt={topThree[0].username}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      if (!target.src.includes('/images/')) {
+                        target.src = '/images/hamster_mascot_king_1793717667076.jpg';
+                      }
+                    }}
                     className="w-16 h-16 rounded-full border-2 border-amber-400 object-cover shadow-lg shadow-amber-500/30"
                   />
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2 text-amber-300 animate-bounce">
@@ -131,9 +143,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
               <div className="flex flex-col items-center">
                 <div className="relative mb-2">
                   <img
-                    src={HAMSTER_SKINS[topThree[2].skin]?.image || HAMSTER_SKINS.default.image}
+                    src={HAMSTER_SKINS[topThree[2].skin]?.image || '/images/hamster_mascot_default_1793717666154.jpg'}
                     alt={topThree[2].username}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      if (!target.src.includes('/images/')) {
+                        target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                      }
+                    }}
                     className="w-12 h-12 rounded-full border-2 border-amber-700 object-cover shadow-md"
                   />
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 text-amber-700">
@@ -170,9 +188,15 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
                   </span>
                   <div className="flex items-center gap-2">
                     <img
-                      src={HAMSTER_SKINS[item.skin]?.image || HAMSTER_SKINS.default.image}
+                      src={HAMSTER_SKINS[item.skin]?.image || '/images/hamster_mascot_default_1793717666154.jpg'}
                       alt={item.username}
                       referrerPolicy="no-referrer"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (!target.src.includes('/images/')) {
+                          target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                        }
+                      }}
                       className="w-8 h-8 rounded-full border border-slate-700 object-cover"
                     />
                     <div>

@@ -115,9 +115,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
         <div className="flex items-center gap-3.5">
           <div className="relative">
             <img
-              src={HAMSTER_SKINS[activeSkin].image}
+              src={HAMSTER_SKINS[activeSkin]?.image || '/images/hamster_mascot_default_1793717666154.jpg'}
               alt="Profile"
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.currentTarget as HTMLImageElement;
+                if (!target.src.includes('/images/')) {
+                  target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                }
+              }}
               className="w-16 h-16 rounded-full border-2 border-amber-500/80 object-cover shadow-lg shadow-amber-500/20"
             />
             {isPiConnected && (
@@ -257,9 +263,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
               >
                 <div className="relative w-14 h-14 rounded-full overflow-hidden mb-1.5 border border-slate-700 shadow-inner">
                   <img
-                    src={skinItem.image}
+                    src={skinItem.image || '/images/hamster_mascot_default_1793717666154.jpg'}
                     alt={skinItem.name}
                     referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.currentTarget as HTMLImageElement;
+                      if (!target.src.includes('/images/')) {
+                        target.src = '/images/hamster_mascot_default_1793717666154.jpg';
+                      }
+                    }}
                     className="w-full h-full object-cover"
                   />
                   {!isUnlocked && (

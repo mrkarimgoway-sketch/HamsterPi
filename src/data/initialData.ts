@@ -1,24 +1,27 @@
 import { Achievement, HamsterSkin, Mission, UpgradeItem } from '../types/game';
+import mascotDefaultImg from '../assets/images/hamster_mascot_default_1793717666154.jpg';
+import mascotKingImg from '../assets/images/hamster_mascot_king_1793717667076.jpg';
+import mascotCyberImg from '../assets/images/hamster_mascot_cyber_1793717682400.jpg';
 
 export const HAMSTER_SKINS: Record<HamsterSkin, { name: string; nameAr: string; image: string; description: string; reqTitle: string }> = {
   default: {
     name: 'Pioneer Cadet',
     nameAr: 'رائد مبتدئ',
-    image: '/src/assets/images/hamster_mascot_default_1793717666154.jpg',
+    image: mascotDefaultImg,
     description: 'The iconic energetic Hamster wearing a golden Pi pendant.',
     reqTitle: 'Unlocked by default',
   },
   king: {
     name: 'Pi Sovereign King',
     nameAr: 'ملك باي المتوج',
-    image: '/src/assets/images/hamster_mascot_king_1793717667076.jpg',
+    image: mascotKingImg,
     description: 'Regal golden crown and royal cape. +15% passive points yield.',
     reqTitle: 'Unlock Royal Pi Crown upgrade',
   },
   cyber: {
     name: 'Cyberpunk Pioneer',
     nameAr: 'سايبربانك المستقبلي',
-    image: '/src/assets/images/hamster_mascot_cyber_1793717682400.jpg',
+    image: mascotCyberImg,
     description: 'Futuristic holographic visor and cybernetic circuits. +20 tap power.',
     reqTitle: 'Unlock Cyberpunk Visor upgrade',
   },

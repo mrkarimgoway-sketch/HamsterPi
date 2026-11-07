@@ -17,6 +17,7 @@ import {
 } from '../types/game';
 import {
   DAILY_LOGIN_REWARDS,
+  HAMSTER_SKINS,
   INITIAL_ACHIEVEMENTS,
   INITIAL_MISSIONS,
   INITIAL_UPGRADES,
@@ -131,7 +132,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: 'pioneer_' + Math.random().toString(36).substring(2, 9),
       username: cachedUser ? cachedUser.username : 'Pioneer_Guest',
       displayName: cachedUser ? cachedUser.username : 'Pioneer Guest',
-      avatarUrl: '/src/assets/images/hamster_mascot_default_1793717666154.jpg',
+      avatarUrl: HAMSTER_SKINS.default.image,
       currentSkin: 'default',
       role: 'pioneer',
       referralCode: 'PIHAMSTER' + Math.floor(1000 + Math.random() * 9000),
@@ -219,9 +220,15 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (raw) {
         const saved = JSON.parse(raw);
         if (saved.profile) {
+          const skin = (saved.profile.currentSkin && HAMSTER_SKINS[saved.profile.currentSkin as HamsterSkin])
+            ? (saved.profile.currentSkin as HamsterSkin)
+            : 'default';
+          const validImg = HAMSTER_SKINS[skin]?.image || HAMSTER_SKINS.default.image;
           setProfile((prev) => ({
             ...prev,
             ...saved.profile,
+            avatarUrl: validImg,
+            currentSkin: skin,
             // Keep Pi connection state aligned with Pi client token
             isPiConnected: Boolean(piNetwork.getCurrentUser()) || saved.profile.isPiConnected,
             username: piNetwork.getCurrentUser()?.username || saved.profile.username,
