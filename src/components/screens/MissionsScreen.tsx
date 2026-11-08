@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckSquare, Calendar, Gift, Sparkles, CheckCircle2, Clock } from 'lucide-react';
+import { CheckSquare, Calendar, Gift, Sparkles, CheckCircle2, Clock, Play, Tv, Zap } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { DAILY_LOGIN_REWARDS } from '../../data/initialData';
@@ -12,11 +12,33 @@ export const MissionsScreen: React.FC = () => {
     claimMissionReward,
     claimDailyLogin,
     isDailyRewardClaimable,
+    isAdWatching,
+    adCooldownRemainingMs,
+    watchRewardedAd,
   } = useGame();
 
   const t = translations[language];
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
   const [timeLeft, setTimeLeft] = useState<string>('');
+  const [adFeedback, setAdFeedback] = useState<string | null>(null);
+
+  // Helper to format remaining cooldown milliseconds into HH:MM:SS
+  const formatCooldown = (ms: number) => {
+    const totalSecs = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const handleWatchAd = async () => {
+    setAdFeedback(null);
+    const result = await watchRewardedAd();
+    if (!result.success && result.error) {
+      setAdFeedback(result.error);
+      setTimeout(() => setAdFeedback(null), 4000);
+    }
+  };
 
   // Live countdown until midnight (next calendar day)
   useEffect(() => {
@@ -151,6 +173,91 @@ export const MissionsScreen: React.FC = () => {
               {t.missions.claim}
             </button>
           </div>
+        )}
+      </div>
+
+      {/* Pi Ad Network: 3-Hour Rewarded Video Card */}
+      <div className="relative overflow-hidden rounded-2xl p-4 border border-purple-500/30 bg-gradient-to-br from-purple-950/40 via-slate-900/80 to-slate-950 mb-4 shadow-lg shadow-purple-950/30">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center text-purple-300">
+              <Tv className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-xs font-bold text-purple-200">
+                  {language === 'ar' ? 'شبكة إعلانات باي: دفعة طاقة' : 'Pi Ad Network: Power Surge'}
+                </h2>
+                <span className="text-[9px] font-bold text-purple-300 bg-purple-900/60 px-1.5 py-0.5 rounded-full border border-purple-700/50">
+                  {language === 'ar' ? 'كل 3 ساعات' : '3-Hour Cooldown'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                {language === 'ar'
+                  ? 'شاهد إعلان باي واحصل فوراً على نقاط وبذور ومضاعف نقر مضاعف 2x لمدة 30 دقيقة'
+                  : 'Watch an official Pi video ad to claim bonus points, seeds & a 30m 2x boost'}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Reward pills */}
+        <div className="flex items-center gap-2 my-2.5">
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-950/40 border border-amber-800/40 text-amber-300 text-xs font-mono font-bold">
+            <span>+2,500 π</span>
+          </div>
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-yellow-950/40 border border-yellow-800/40 text-yellow-300 text-xs font-mono font-bold">
+            <span>+2 🌰</span>
+          </div>
+          <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-950/50 border border-purple-700/50 text-purple-300 text-xs font-bold">
+            <Zap className="w-3 h-3 text-purple-400" />
+            <span>2x Boost (30m)</span>
+          </div>
+        </div>
+
+        {/* Action Button & Cooldown */}
+        {adCooldownRemainingMs > 0 ? (
+          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-purple-900/30 mt-2">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-purple-400 animate-spin" />
+              <span className="text-xs text-slate-300 font-medium">
+                {language === 'ar' ? 'الإعلان القادم متاح بعد:' : 'Next Ad Available In:'}
+              </span>
+            </div>
+            <span className="text-xs font-mono font-bold text-purple-300 bg-purple-950/60 px-2.5 py-1 rounded-lg border border-purple-800/50">
+              {formatCooldown(adCooldownRemainingMs)}
+            </span>
+          </div>
+        ) : (
+          <button
+            onClick={handleWatchAd}
+            disabled={isAdWatching}
+            className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all mt-1 ${
+              isAdWatching
+                ? 'bg-purple-800/60 text-purple-300 cursor-wait'
+                : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 text-white hover:brightness-110 active:scale-[0.98] shadow-md shadow-purple-900/40'
+            }`}
+          >
+            {isAdWatching ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span>{language === 'ar' ? 'جارٍ تشغيل إعلان باي...' : 'Playing Pi Video Ad...'}</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 fill-white" />
+                <span>
+                  {language === 'ar' ? 'شاهد الإعلان الآن (+2,500 π)' : 'Watch Video Ad (+2,500 π & Boost)'}
+                </span>
+              </>
+            )}
+          </button>
+        )}
+
+        {adFeedback && (
+          <p className="text-[11px] text-amber-400 text-center mt-2 bg-amber-950/40 py-1 px-2 rounded border border-amber-800/40">
+            {adFeedback}
+          </p>
         )}
       </div>
 

@@ -40,6 +40,7 @@ export interface PlayerStats {
   referralCount: number;
   activeBoosterMultiplier?: number;
   activeBoosterExpiresAt?: number;
+  lastAdWatchTime?: number;
 }
 
 export interface PlayerBalance {

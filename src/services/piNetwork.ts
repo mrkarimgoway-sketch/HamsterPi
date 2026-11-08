@@ -91,6 +91,13 @@ declare global {
         callbacks: PiPaymentCallbacks
       ) => void;
       openShareDialog?: (title: string, message: string) => void;
+      Ads?: {
+        isReady: (adFormat: 'rewarded' | 'interstitial') => Promise<boolean>;
+        showAd: (adFormat: 'rewarded' | 'interstitial') => Promise<{
+          result: 'AD_REWARDED' | 'AD_CLOSED' | 'AD_FAILED' | 'AD_NOT_AVAILABLE';
+          adId?: string;
+        }>;
+      };
     };
   }
 }
@@ -433,6 +440,46 @@ class PiNetworkService {
       localStorage.removeItem('hamsterpi_pi_token');
       localStorage.removeItem('hamsterpi_pi_user');
     }
+  }
+
+  /**
+   * Check if Pi Ads is ready
+   */
+  public async isPiAdReady(): Promise<boolean> {
+    if (typeof window !== 'undefined' && window.Pi?.Ads?.isReady) {
+      try {
+        return await window.Pi.Ads.isReady('rewarded');
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Display a Rewarded Pi Ad
+   * Calls official window.Pi.Ads.showAd('rewarded') inside Pi Browser
+   */
+  public async showRewardedAd(): Promise<{ rewarded: boolean; adId?: string; reason?: string }> {
+    if (typeof window !== 'undefined' && window.Pi?.Ads?.showAd) {
+      try {
+        const response = await window.Pi.Ads.showAd('rewarded');
+        if (response.result === 'AD_REWARDED' || response.result === 'AD_CLOSED') {
+          return { rewarded: true, adId: response.adId };
+        }
+        return { rewarded: false, reason: response.result };
+      } catch (err: unknown) {
+        console.warn('[Pi Ads SDK] Exception during ad display:', err);
+        return { rewarded: false, reason: (err as Error).message };
+      }
+    }
+
+    // Outside Pi Browser (simulated for desktop preview and developer testing)
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({ rewarded: true, adId: 'simulated_pi_ad_' + Date.now() });
+      }, 3000);
+    });
   }
 }
 

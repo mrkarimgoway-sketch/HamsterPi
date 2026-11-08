@@ -55,6 +55,17 @@ app.get('/validation-key.txt', (_req: Request, res: Response) => {
 });
 
 /**
+ * Privacy Policy and Terms of Service (for Pi Ecosystem Listing)
+ */
+app.get(['/privacy', '/privacy.html'], (_req: Request, res: Response) => {
+  res.sendFile(path.resolve(__dirname, 'public', 'privacy.html'));
+});
+
+app.get(['/terms', '/terms.html'], (_req: Request, res: Response) => {
+  res.sendFile(path.resolve(__dirname, 'public', 'terms.html'));
+});
+
+/**
  * Products Catalog
  */
 app.get('/api/pi/products', (_req: Request, res: Response) => {

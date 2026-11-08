@@ -82,6 +82,10 @@ interface GameContextType {
   piAuthError: string | null;
   connectPiAccount: () => Promise<{ success: boolean; error?: string }>;
   disconnectPiAccount: () => void;
+  // Pi Ads Network (3-Hour Rewarded Ad Task)
+  isAdWatching: boolean;
+  adCooldownRemainingMs: number;
+  watchRewardedAd: () => Promise<{ success: boolean; error?: string }>;
 
   // Real Pi Network Payments & Purchases
   paymentStatus: PaymentStatusState;
@@ -851,6 +855,90 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [balance.points, profile.id]
   );
 
+  // ============================================================================
+  // PI ADS NETWORK (3-HOUR REWARDED TASK)
+  // ============================================================================
+
+  const AD_COOLDOWN_MS = 3 * 60 * 60 * 1000; // 3 hours (10,800,000 ms)
+  const [isAdWatching, setIsAdWatching] = useState<boolean>(false);
+  const [adCooldownRemainingMs, setAdCooldownRemainingMs] = useState<number>(0);
+
+  // Live timer for 3-hour cooldown
+  useEffect(() => {
+    const updateCooldown = () => {
+      const lastWatch = stats.lastAdWatchTime || 0;
+      const elapsed = Date.now() - lastWatch;
+      const remaining = Math.max(0, AD_COOLDOWN_MS - elapsed);
+      setAdCooldownRemainingMs(remaining);
+    };
+
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 1000);
+    return () => clearInterval(interval);
+  }, [stats.lastAdWatchTime]);
+
+  const watchRewardedAd = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+    const lastWatch = stats.lastAdWatchTime || 0;
+    const elapsed = Date.now() - lastWatch;
+    if (elapsed < AD_COOLDOWN_MS) {
+      const waitMin = Math.ceil((AD_COOLDOWN_MS - elapsed) / 60000);
+      sounds.playError();
+      return { success: false, error: `Ad on cooldown. Please wait ${waitMin} minutes.` };
+    }
+
+    setIsAdWatching(true);
+    try {
+      const result = await piNetwork.showRewardedAd();
+      if (!result.rewarded) {
+        setIsAdWatching(false);
+        sounds.playError();
+        return { success: false, error: result.reason || 'Ad was closed before completion.' };
+      }
+
+      // Grant Rewarded Ad Bonus: +2,500 points, +2 seeds, +30 min 2X multiplier boost
+      const bonusPoints = 2500;
+      const bonusSeeds = 2;
+      const boostExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
+
+      sounds.playFanfare();
+      confetti({
+        particleCount: 100,
+        spread: 80,
+        origin: { y: 0.6 },
+      });
+
+      setBalance((prev) => ({
+        ...prev,
+        points: prev.points + bonusPoints,
+        lifetimePoints: prev.lifetimePoints + bonusPoints,
+        goldenSeeds: prev.goldenSeeds + bonusSeeds,
+      }));
+
+      setStats((prev) => ({
+        ...prev,
+        lastAdWatchTime: Date.now(),
+        activeBoosterMultiplier: Math.max(prev.activeBoosterMultiplier || 1, 2.0),
+        activeBoosterExpiresAt: Math.max(prev.activeBoosterExpiresAt || 0, boostExpires),
+      }));
+
+      dbService.recordTransaction({
+        playerId: profile.id,
+        amount: bonusPoints,
+        balanceAfter: balance.points + bonusPoints,
+        category: 'daily_reward',
+        description: `Pi Ad Network Rewarded Task (+${bonusPoints} points, +${bonusSeeds} seeds, 2x Boost)`,
+        metadata: { adId: result.adId },
+      });
+
+      setIsAdWatching(false);
+      return { success: true };
+    } catch (err: unknown) {
+      setIsAdWatching(false);
+      sounds.playError();
+      return { success: false, error: (err as Error).message };
+    }
+  }, [stats.lastAdWatchTime, balance.points, profile.id]);
+
   // Authenticate Pi Network Account
   const connectPiAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     setPiAuthError(null);
@@ -1081,6 +1169,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         piAuthError,
         connectPiAccount,
         disconnectPiAccount,
+
+        // Pi Ads Network
+        isAdWatching,
+        adCooldownRemainingMs,
+        watchRewardedAd,
 
         paymentStatus,
         purchasePiProduct,
