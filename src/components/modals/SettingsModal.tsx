@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Volume2, VolumeX, Smartphone, Globe, Shield, RefreshCw } from 'lucide-react';
+import { X, Volume2, VolumeX, Smartphone, Globe, Shield, RefreshCw, Lock } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { piNetwork } from '../../services/piNetwork';
@@ -20,12 +20,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   } = useGame();
 
   const t = translations[language];
-  const [isSandbox, setIsSandbox] = useState(piNetwork.getIsSandbox());
-
-  const handleSandboxToggle = (sandbox: boolean) => {
-    setIsSandbox(sandbox);
-    piNetwork.setSandboxMode(sandbox);
-  };
+  const isTestnet = piNetwork.getIsSandbox();
 
   const handleClearCache = () => {
     if (window.confirm('Reset local cache and reload game?')) {
@@ -136,32 +131,79 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <Shield className="w-5 h-5 text-amber-400" />
               <div>
                 <div className="text-xs font-bold text-slate-200">{t.settings.piNetworkMode}</div>
-                <div className="text-[10px] text-slate-400">Official Pi Developer SDK config</div>
+                <div className="text-[10px] text-slate-400">
+                  {language === 'ar'
+                    ? 'الشبكة المعتمدة رسمياً — تعمل شبكة واحدة فقط في كل مرة'
+                    : 'Authoritative network status — one network active at a time'}
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <button
-                onClick={() => handleSandboxToggle(true)}
-                className={`py-2 px-2 rounded-lg font-bold border text-center transition-all ${
-                  isSandbox
-                    ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
-                    : 'bg-slate-900 text-slate-400 border-slate-800'
+              {/* Testnet Card */}
+              <div
+                className={`py-2 px-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                  isTestnet
+                    ? 'bg-purple-950/60 border-purple-500/80 shadow-md shadow-purple-900/30'
+                    : 'bg-slate-900/40 border-slate-800/60 opacity-40 cursor-not-allowed'
                 }`}
               >
-                Sandbox Mode
-              </button>
-              <button
-                onClick={() => handleSandboxToggle(false)}
-                className={`py-2 px-2 rounded-lg font-bold border text-center transition-all ${
-                  !isSandbox
-                    ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
-                    : 'bg-slate-900 text-slate-400 border-slate-800'
+                <div className="flex items-center gap-1.5 font-bold text-xs text-purple-200 mb-0.5">
+                  {isTestnet ? (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  ) : (
+                    <Lock className="w-3 h-3 text-slate-500" />
+                  )}
+                  <span>{t.settings.testnetMode}</span>
+                </div>
+                <span
+                  className={`text-[9px] font-semibold px-2 py-0.5 rounded-full mt-1 ${
+                    isTestnet
+                      ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/50'
+                      : 'bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  {isTestnet ? t.settings.networkActive : t.settings.networkDisabled}
+                </span>
+              </div>
+
+              {/* Mainnet Card */}
+              <div
+                className={`py-2 px-2.5 rounded-xl border flex flex-col items-center justify-center text-center transition-all ${
+                  !isTestnet
+                    ? 'bg-amber-950/60 border-amber-500/80 shadow-md shadow-amber-900/30'
+                    : 'bg-slate-900/40 border-slate-800/60 opacity-40 cursor-not-allowed'
                 }`}
               >
-                Mainnet Live
-              </button>
+                <div className="flex items-center gap-1.5 font-bold text-xs text-amber-200 mb-0.5">
+                  {!isTestnet ? (
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  ) : (
+                    <Lock className="w-3 h-3 text-slate-500" />
+                  )}
+                  <span>{t.settings.productionMode}</span>
+                </div>
+                <span
+                  className={`text-[9px] font-semibold px-2 py-0.5 rounded-full mt-1 ${
+                    !isTestnet
+                      ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/50'
+                      : 'bg-slate-800 text-slate-500'
+                  }`}
+                >
+                  {!isTestnet ? t.settings.networkActive : t.settings.networkDisabled}
+                </span>
+              </div>
             </div>
+
+            <p className="text-[10px] text-slate-400 text-center mt-2.5">
+              {isTestnet
+                ? language === 'ar'
+                  ? '⚡ شبكة الاختبار (Testnet) نشطة رسمياً لمعاملات متصفح باي واختبارات التحقق.'
+                  : '⚡ Pi Testnet is active for Pi Browser transactions and 5-wallet verification.'
+                : language === 'ar'
+                ? '🌟 الشبكة الرئيسية (Mainnet) نشطة لمدفوعات باي الحقيقية الرسمية.'
+                : '🌟 Pi Mainnet is live for official real Pi cryptocurrency payments.'}
+            </p>
           </div>
 
           {/* Reset Cache */}

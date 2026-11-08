@@ -3,6 +3,7 @@ import { X, ShieldAlert, Sliders, Bell, Activity, Check, Database } from 'lucide
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { piNetwork } from '../../services/piNetwork';
 
 interface AdminModalProps {
   onClose: () => void;
@@ -17,6 +18,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
   const [passiveMult, setPassiveMult] = useState(adminSettings.passiveMultiplier);
   const [broadcast, setBroadcast] = useState(adminSettings.broadcastNotice);
   const [saved, setSaved] = useState(false);
+  const [isAdminTestnet, setIsAdminTestnet] = useState(piNetwork.getIsSandbox());
+
+  const handleNetworkSwitch = (toTestnet: boolean) => {
+    setIsAdminTestnet(toTestnet);
+    piNetwork.setSandboxMode(toTestnet);
+  };
 
   // Administrative Project States
   const [projectGoals, setProjectGoals] = useState({
@@ -226,7 +233,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
           </div>
 
           {/* Pi Network Platform Backend Status */}
-          <div className="glass-panel rounded-xl p-3 border border-slate-800 mb-4 flex items-center justify-between text-xs">
+          <div className="glass-panel rounded-xl p-3 border border-slate-800 mb-3 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-slate-300">
               <span className="font-bold text-amber-400">π</span>
               <span>Pi Platform API / Payments</span>
@@ -234,6 +241,54 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
             <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-purple-950/60 text-purple-300 border border-purple-800/40">
               ACTIVE V2
             </span>
+          </div>
+
+          {/* Developer / Admin Pi Blockchain Target Control */}
+          <div className="glass-panel rounded-xl p-3 border border-slate-800 mb-4 text-xs">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2 text-slate-200">
+                <span className="text-amber-400 font-bold">⚡</span>
+                <span className="font-bold">Pi Blockchain Target</span>
+              </div>
+              <span
+                className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                  isAdminTestnet
+                    ? 'bg-purple-950/60 text-purple-300 border border-purple-800/40'
+                    : 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
+                }`}
+              >
+                {isAdminTestnet ? 'TESTNET' : 'MAINNET LIVE'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => handleNetworkSwitch(true)}
+                className={`py-1.5 px-2 rounded-lg font-bold text-xs border transition-all ${
+                  isAdminTestnet
+                    ? 'bg-purple-600 text-white border-purple-400 shadow-sm'
+                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                Testnet (Active)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleNetworkSwitch(false)}
+                className={`py-1.5 px-2 rounded-lg font-bold text-xs border transition-all ${
+                  !isAdminTestnet
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                    : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
+                }`}
+              >
+                Mainnet Live
+              </button>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-2">
+              {isAdminTestnet
+                ? 'Transactions route to the official Pi Testnet blockchain for 5-wallet verification.'
+                : 'Transactions route to real Pi Mainnet. (Requires approved Mainnet App Wallet from Core Team).'}
+            </p>
           </div>
 
           {/* Economy Multipliers */}
