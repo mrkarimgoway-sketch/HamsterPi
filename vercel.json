@@ -1,0 +1,11 @@
+{
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/privacy/", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/terms/", "destination": "/terms.html" },
+    { "source": "/validation-key.txt", "destination": "/validation-key.txt" },
+    { "source": "/((?!privacy|terms|validation-key\\.txt|assets|images|.*\\..*).*)", "destination": "/index.html" }
+  ]
+}
