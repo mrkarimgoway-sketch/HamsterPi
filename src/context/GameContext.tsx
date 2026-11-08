@@ -71,7 +71,8 @@ interface GameContextType {
   handleHamsterTap: (event: React.MouseEvent | React.TouchEvent) => void;
   buyUpgrade: (upgradeId: string) => boolean;
   claimMissionReward: (missionId: string) => void;
-  claimDailyLogin: () => void;
+  isDailyRewardClaimable: boolean;
+  claimDailyLogin: () => boolean;
   submitMiniGameResult: (gameKey: string, score: number, rewardPoints: number) => void;
   
   // Real Pi Network Authentication & Status
@@ -100,6 +101,13 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'hamsterpi_save_v2';
+
+const getTodayDateString = (): string => new Date().toISOString().split('T')[0];
+const getYesterdayDateString = (): string => {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().split('T')[0];
+};
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
@@ -157,7 +165,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     criticalChance: 0.05,
     criticalMultiplier: 2.0,
     loginStreak: 1,
-    lastLoginDate: new Date().toISOString().split('T')[0],
+    lastLoginDate: getTodayDateString(),
+    lastDailyClaimDate: undefined,
     minigamesPlayed: 0,
     highestMinigameScore: 0,
     referralCount: 2,
@@ -235,7 +244,24 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }));
         }
         if (saved.balance) setBalance(saved.balance);
-        if (saved.stats) setStats(saved.stats);
+        if (saved.stats) {
+          const today = getTodayDateString();
+          const yesterday = getYesterdayDateString();
+          let streak = saved.stats.loginStreak || 1;
+          const lastClaim = saved.stats.lastDailyClaimDate;
+
+          // If the player missed a day, reset streak to 1
+          if (lastClaim && lastClaim !== today && lastClaim !== yesterday) {
+            streak = 1;
+          }
+
+          setStats({
+            ...saved.stats,
+            loginStreak: streak,
+            lastLoginDate: today,
+            lastDailyClaimDate: lastClaim,
+          });
+        }
         if (saved.energy) setEnergy(saved.energy);
         if (saved.upgrades && Array.isArray(saved.upgrades)) {
           const levelMap = new Map<string, number>();
@@ -715,10 +741,30 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [missions, balance.points, profile.id]
   );
 
-  // Claim Daily Login Reward
-  const claimDailyLogin = useCallback(() => {
-    const todayReward = DAILY_LOGIN_REWARDS[(stats.loginStreak - 1) % DAILY_LOGIN_REWARDS.length];
-    if (!todayReward) return;
+  // Daily login claim eligibility (strictly once per calendar day)
+  const isDailyRewardClaimable = stats.lastDailyClaimDate !== getTodayDateString();
+
+  // Claim Daily Login Reward (strictly once per calendar day)
+  const claimDailyLogin = useCallback((): boolean => {
+    const todayStr = getTodayDateString();
+
+    // Prevent duplicate claim on the same day
+    if (stats.lastDailyClaimDate === todayStr) {
+      sounds.playError();
+      return false;
+    }
+
+    const yesterdayStr = getYesterdayDateString();
+    let currentStreak = stats.loginStreak || 1;
+
+    // Reset streak if more than 1 day skipped
+    if (stats.lastDailyClaimDate && stats.lastDailyClaimDate !== yesterdayStr && stats.lastDailyClaimDate !== todayStr) {
+      currentStreak = 1;
+    }
+
+    const rewardIndex = ((currentStreak - 1) % DAILY_LOGIN_REWARDS.length);
+    const todayReward = DAILY_LOGIN_REWARDS[rewardIndex];
+    if (!todayReward) return false;
 
     sounds.playFanfare();
     confetti({
@@ -734,9 +780,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       goldenSeeds: prev.goldenSeeds + todayReward.seeds,
     }));
 
+    // Advance to next streak day (1 -> 2 -> ... -> 7 -> 1)
+    const nextStreak = (currentStreak % 7) + 1;
+
     setStats((prev) => ({
       ...prev,
-      loginStreak: prev.loginStreak + 1,
+      loginStreak: nextStreak,
+      lastDailyClaimDate: todayStr,
+      lastLoginDate: todayStr,
     }));
 
     dbService.recordTransaction({
@@ -746,7 +797,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       category: 'daily_reward',
       description: `Claimed Day ${todayReward.day} daily login streak reward`,
     });
-  }, [stats.loginStreak, balance.points, profile.id]);
+
+    return true;
+  }, [stats.loginStreak, stats.lastDailyClaimDate, balance.points, profile.id]);
 
   // Submit Mini Game Result
   const submitMiniGameResult = useCallback(
@@ -1018,6 +1071,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleHamsterTap,
         buyUpgrade,
         claimMissionReward,
+        isDailyRewardClaimable,
         claimDailyLogin,
         submitMiniGameResult,
         

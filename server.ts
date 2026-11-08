@@ -13,7 +13,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+// AI Studio requires port 3000. Ignore container proxy port 8080.
+const portArgIndex = process.argv.indexOf('--port');
+const cliPort = portArgIndex !== -1 ? Number(process.argv[portArgIndex + 1]) : null;
+const envPort = process.env.PORT && process.env.PORT !== '8080' ? Number(process.env.PORT) : 3000;
+const PORT = cliPort || envPort || 3000;
 
 app.use(express.json());
 
@@ -41,6 +45,13 @@ app.get('/api/pi/config', (_req: Request, res: Response) => {
     platformApiBase: PI_PLATFORM_API_BASE,
     appToUserPayoutsEnabled: PiAppToUserPayoutService.isEnabled(),
   });
+});
+
+/**
+ * Pi Network Domain Verification Key
+ */
+app.get('/validation-key.txt', (_req: Request, res: Response) => {
+  res.type('text/plain').send('88cdd3d6a64aaca579501b72a8a96ca97c1b03568ba88681fc40aad6c3e5aef6dfc6ddf2f6b66498762db51d1e01561b0b5b091ab009e381aa11c45e88e649b7');
 });
 
 /**
@@ -711,7 +722,10 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        hmr: false,
+      },
       appType: 'spa',
     });
     app.use(vite.middlewares);
@@ -722,8 +736,12 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`HamsterPi Game Server running at http://0.0.0.0:${PORT}`);
+  });
+
+  server.on('error', (err: NodeJS.ErrnoException) => {
+    console.error(`[Server Error] Failed to bind to 0.0.0.0:${PORT}:`, err.message);
   });
 }
 

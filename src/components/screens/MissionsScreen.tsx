@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CheckSquare, Calendar, Gift, Sparkles, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { CheckSquare, Calendar, Gift, Sparkles, CheckCircle2, Clock } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { DAILY_LOGIN_REWARDS } from '../../data/initialData';
@@ -11,13 +11,37 @@ export const MissionsScreen: React.FC = () => {
     stats,
     claimMissionReward,
     claimDailyLogin,
+    isDailyRewardClaimable,
   } = useGame();
 
   const t = translations[language];
   const [activeTab, setActiveTab] = useState<'daily' | 'weekly'>('daily');
+  const [timeLeft, setTimeLeft] = useState<string>('');
+
+  // Live countdown until midnight (next calendar day)
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+      const diffMs = tomorrow.getTime() - now.getTime();
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diffMs % (1000 * 60)) / 1000);
+      setTimeLeft(
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      );
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const filteredMissions = missions.filter((m) => m.frequency === activeTab);
-  const currentStreakDay = ((stats.loginStreak - 1) % 7) + 1;
+
+  // Determine current active day in 7-day cycle
+  const activeDayIndex = ((stats.loginStreak - 1) % 7) + 1;
+  const lastClaimedDayIndex = ((stats.loginStreak - 2 + 7) % 7) + 1;
 
   return (
     <div className="flex flex-col min-h-[calc(100vh-130px)] px-4 py-3 pb-24 max-w-md mx-auto">
@@ -35,25 +59,28 @@ export const MissionsScreen: React.FC = () => {
             <h2 className="text-xs font-bold text-slate-200">{t.missions.dailyLogin}</h2>
           </div>
           <span className="text-[11px] font-semibold text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-800/40">
-            Day {currentStreakDay} of 7
+            {isDailyRewardClaimable
+              ? `Day ${activeDayIndex} of 7`
+              : `Day ${lastClaimedDayIndex} Claimed ✓`}
           </span>
         </div>
 
         {/* 7 Day Blocks Grid */}
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
           {DAILY_LOGIN_REWARDS.map((reward) => {
-            const isClaimed = reward.day < currentStreakDay;
-            const isToday = reward.day === currentStreakDay;
-            const isFuture = reward.day > currentStreakDay;
+            const isClaimed = isDailyRewardClaimable
+              ? reward.day < activeDayIndex
+              : reward.day <= lastClaimedDayIndex;
+            const isToday = isDailyRewardClaimable && reward.day === activeDayIndex;
 
             return (
               <div
                 key={reward.day}
                 className={`relative rounded-xl p-2 flex flex-col items-center justify-between border text-center transition-all ${
                   isToday
-                    ? 'glass-panel-gold border-amber-400 shadow-md shadow-amber-500/20 scale-105'
+                    ? 'glass-panel-gold border-amber-400 shadow-md shadow-amber-500/20 scale-105 ring-1 ring-amber-400/50'
                     : isClaimed
-                    ? 'bg-slate-900/60 border-emerald-800/40 opacity-70'
+                    ? 'bg-slate-900/60 border-emerald-800/40 opacity-80'
                     : 'bg-slate-950 border-slate-800/60 opacity-60'
                 }`}
               >
@@ -64,8 +91,10 @@ export const MissionsScreen: React.FC = () => {
                 <div className="my-1 text-base">
                   {isClaimed ? (
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  ) : (
+                  ) : isToday ? (
                     '🎁'
+                  ) : (
+                    '🔒'
                   )}
                 </div>
 
@@ -73,18 +102,56 @@ export const MissionsScreen: React.FC = () => {
                   +{reward.points >= 1000 ? `${reward.points / 1000}k` : reward.points}
                 </div>
 
-                {isToday && (
+                {isToday ? (
                   <button
                     onClick={claimDailyLogin}
-                    className="w-full mt-1.5 py-1 rounded bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider hover:brightness-110 active:scale-95"
+                    className="w-full mt-1.5 py-1 rounded bg-amber-500 text-slate-950 font-black text-[9px] uppercase tracking-wider hover:brightness-110 active:scale-95 shadow-sm shadow-amber-500/40"
                   >
                     {t.missions.claim}
                   </button>
+                ) : isClaimed ? (
+                  <span className="w-full mt-1.5 py-0.5 text-center text-emerald-400 font-bold text-[8px] bg-emerald-950/40 rounded border border-emerald-900/30">
+                    {t.missions.claimed}
+                  </span>
+                ) : (
+                  <span className="w-full mt-1.5 py-0.5 text-center text-slate-600 font-medium text-[8px]">
+                    Day {reward.day}
+                  </span>
                 )}
               </div>
             );
           })}
         </div>
+
+        {/* Status / Countdown Banner */}
+        {!isDailyRewardClaimable ? (
+          <div className="mt-3 p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-amber-400 animate-pulse" />
+              <span className="text-xs text-slate-300 font-medium">
+                {language === 'ar' ? 'مكافأة الغد تفتح خلال:' : 'Next Streak Reward Unlocks In:'}
+              </span>
+            </div>
+            <span className="text-xs font-mono font-bold text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
+              {timeLeft}
+            </span>
+          </div>
+        ) : (
+          <div className="mt-3 p-2.5 rounded-xl bg-amber-950/30 border border-amber-500/40 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-amber-400 animate-bounce" />
+              <span className="text-xs text-amber-200 font-bold">
+                {language === 'ar' ? 'مكافأتك اليومية جاهزة للاستلام الآن!' : 'Your daily login reward is ready to claim!'}
+              </span>
+            </div>
+            <button
+              onClick={claimDailyLogin}
+              className="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-black text-xs hover:brightness-110 active:scale-95"
+            >
+              {t.missions.claim}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Daily / Weekly Selector */}

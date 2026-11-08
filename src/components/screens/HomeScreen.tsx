@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Zap, Sparkles, Trophy, ChevronRight, Gift, Flame } from 'lucide-react';
+import { Zap, Sparkles, Trophy, ChevronRight, Gift, Flame, CheckCircle2 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { HAMSTER_SKINS } from '../../data/initialData';
@@ -26,6 +26,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     handleHamsterTap,
     activeSkin,
     adminSettings,
+    isDailyRewardClaimable,
   } = useGame();
 
   const t = translations[language];
@@ -119,20 +120,34 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       <div className="w-full grid grid-cols-2 gap-2 mb-3">
         <button
           onClick={onOpenDailyModal}
-          className="glass-panel-gold rounded-xl p-2.5 flex items-center justify-between text-left hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className={`rounded-xl p-2.5 flex items-center justify-between text-left transition-all ${
+            isDailyRewardClaimable
+              ? 'glass-panel-gold border border-amber-400 shadow-md shadow-amber-500/15 hover:scale-[1.02] active:scale-[0.98]'
+              : 'glass-panel border border-slate-800/80 opacity-80 hover:scale-[1.01]'
+          }`}
         >
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300">
-              <Gift className="w-4 h-4" />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              isDailyRewardClaimable
+                ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
+                : 'bg-emerald-500/20 border border-emerald-500/40 text-emerald-400'
+            }`}>
+              {isDailyRewardClaimable ? <Gift className="w-4 h-4 animate-bounce" /> : <CheckCircle2 className="w-4 h-4" />}
             </div>
             <div>
-              <div className="text-xs font-bold text-amber-200">{t.missions.dailyLogin}</div>
+              <div className="text-xs font-bold text-slate-100">{t.missions.dailyLogin}</div>
               <div className="text-[10px] text-amber-400/80 font-medium">
-                Day {stats.loginStreak} Streak
+                {isDailyRewardClaimable
+                  ? `Day ${((stats.loginStreak - 1) % 7) + 1} Ready`
+                  : `Day ${((stats.loginStreak - 2 + 7) % 7) + 1} Claimed ✓`}
               </div>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-amber-300">Claim</span>
+          <span className={`text-[11px] font-bold ${
+            isDailyRewardClaimable ? 'text-amber-300' : 'text-emerald-400 font-mono'
+          }`}>
+            {isDailyRewardClaimable ? t.missions.claim : '✓'}
+          </span>
         </button>
 
         <button

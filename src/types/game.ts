@@ -34,6 +34,7 @@ export interface PlayerStats {
   criticalMultiplier: number;
   loginStreak: number;
   lastLoginDate: string;
+  lastDailyClaimDate?: string;
   minigamesPlayed: number;
   highestMinigameScore: number;
   referralCount: number;
