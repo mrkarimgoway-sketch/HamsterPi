@@ -9,6 +9,7 @@ interface HeaderProps {
   onOpenLeaderboard: () => void;
   onOpenReferrals: () => void;
   onOpenPiStore: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -16,6 +17,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenLeaderboard,
   onOpenReferrals,
   onOpenPiStore,
+  onOpenProfile,
 }) => {
   const { language, profile, balance, stats, isMuted, toggleSound } = useGame();
   const t = translations[language];
@@ -27,8 +29,12 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full px-4 py-3 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
       <div className="max-w-md mx-auto flex items-center justify-between gap-3">
-        {/* Pioneer Info & Avatar */}
-        <div className="flex items-center gap-2.5 min-w-0">
+        {/* Pioneer Info & Avatar (Clickable to open Profile & edit handle) */}
+        <button
+          onClick={onOpenProfile}
+          className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 transition-opacity cursor-pointer group"
+          title={language === 'ar' ? 'عرض الملف الشخصي' : 'View Pioneer Profile'}
+        >
           <div className="relative shrink-0">
             <img
               src={skinInfo.image || '/images/hamster_mascot_default_1793717666154.jpg'}
@@ -40,7 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
                   target.src = '/images/hamster_mascot_default_1793717666154.jpg';
                 }
               }}
-              className="w-10 h-10 rounded-full border-2 border-amber-500/60 object-cover shadow-sm shadow-amber-500/20"
+              className="w-10 h-10 rounded-full border-2 border-amber-500/60 object-cover shadow-sm shadow-amber-500/20 group-hover:border-amber-400 transition-colors"
             />
             {profile.isPiConnected && (
               <span
@@ -54,7 +60,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-slate-100 truncate max-w-[110px]">
+              <span className="text-sm font-bold text-slate-100 truncate max-w-[110px] group-hover:text-amber-300 transition-colors">
                 {profile.username}
               </span>
               {profile.isPiConnected && (
@@ -65,7 +71,7 @@ export const Header: React.FC<HeaderProps> = ({
               {stats.levelTitle} · Lvl {stats.level}
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Global Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
@@ -122,11 +128,15 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
 
-        {/* Passive Rate Per Hour */}
-        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+        {/* Passive Rate Per Hour (Click to view Top 100 Miners Leaderboard) */}
+        <button
+          onClick={onOpenLeaderboard}
+          className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-amber-300 transition-colors cursor-pointer py-0.5 px-1.5 rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800"
+          title="View Top 100 Miners Ranking"
+        >
           <span className="text-purple-400 font-medium">⚡ +{formattedPerHour}</span>
           <span>/ hr</span>
-        </div>
+        </button>
 
         {/* Golden Seeds */}
         <div className="flex items-center gap-1 text-[11px] text-amber-200 bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-800/40 font-semibold">

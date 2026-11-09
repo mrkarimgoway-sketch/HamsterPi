@@ -725,6 +725,40 @@ app.get('/api/admin/stats', (_req: Request, res: Response) => {
   });
 });
 
+/**
+ * Real Player Mining Stats Sync
+ */
+app.post('/api/player/sync-stats', async (req: Request, res: Response) => {
+  const { piUid, username, passiveRatePerHour, passiveRatePerSec, points, level, levelTitle, skin } = req.body;
+  if (!piUid || !username) {
+    return res.status(400).json({ error: 'piUid and username required' });
+  }
+
+  const result = await serverDb.syncPlayerMiningStats({
+    piUid: String(piUid),
+    username: String(username),
+    passiveRatePerHour: Number(passiveRatePerHour) || 0,
+    passiveRatePerSec: Number(passiveRatePerSec) || 0,
+    points: Number(points) || 0,
+    level: Number(level) || 1,
+    levelTitle: String(levelTitle || 'Bronze Forager'),
+    skin: String(skin || 'default'),
+  });
+
+  res.json({ success: Boolean(result) });
+});
+
+/**
+ * Real Top 100 Miners Leaderboard
+ */
+app.get('/api/leaderboard/miners', async (_req: Request, res: Response) => {
+  const data = await serverDb.getRealTopMiners();
+  res.json({
+    success: true,
+    miners: data,
+  });
+});
+
 // ============================================================================
 // VITE DEV SERVER / STATIC SERVING
 // ============================================================================

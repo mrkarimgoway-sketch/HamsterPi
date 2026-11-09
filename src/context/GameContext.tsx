@@ -82,6 +82,7 @@ interface GameContextType {
   piAuthError: string | null;
   connectPiAccount: () => Promise<{ success: boolean; error?: string }>;
   disconnectPiAccount: () => void;
+  updatePioneerUsername: (name: string) => void;
   // Pi Ads Network (3-Hour Rewarded Ad Task)
   isAdWatching: boolean;
   adCooldownRemainingMs: number;
@@ -113,6 +114,39 @@ const getYesterdayDateString = (): string => {
   return d.toISOString().split('T')[0];
 };
 
+interface SavedGameData {
+  profile?: PlayerProfile;
+  balance?: PlayerBalance;
+  stats?: PlayerStats;
+  energy?: EnergyState;
+  upgrades?: UpgradeItem[];
+  missions?: Mission[];
+  achievements?: Achievement[];
+  adminSettings?: AdminSettings;
+  lastSavedAt?: number;
+}
+
+const loadSavedGameData = (): SavedGameData | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Failed to parse saved game data:', err);
+    return null;
+  }
+};
+
+const saveGameDataImmediate = (data: SavedGameData): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (err) {
+    console.warn('Failed to write save data to localStorage:', err);
+  }
+};
+
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     return (localStorage.getItem('hamsterpi_lang') as Language) || 'en';
@@ -137,9 +171,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
   const [paymentHistory, setPaymentHistory] = useState<PaymentTransactionRecord[]>([]);
 
-  // Core Game State
+  // =========================================================================
+  // CORE GAME STATE: SYNCHRONOUSLY RESTORED FROM LOCALSTORAGE (NEVER WIPED)
+  // =========================================================================
   const [profile, setProfile] = useState<PlayerProfile>(() => {
+    const saved = loadSavedGameData();
     const cachedUser = piNetwork.getCurrentUser();
+
+    if (saved?.profile) {
+      const skin = (saved.profile.currentSkin && HAMSTER_SKINS[saved.profile.currentSkin as HamsterSkin])
+        ? (saved.profile.currentSkin as HamsterSkin)
+        : 'default';
+      const validImg = HAMSTER_SKINS[skin]?.image || HAMSTER_SKINS.default.image;
+      const verifiedUsername = cachedUser?.username || saved.profile.username || 'Pioneer_Guest';
+
+      return {
+        ...saved.profile,
+        username: verifiedUsername,
+        displayName: cachedUser?.username || saved.profile.displayName || verifiedUsername,
+        avatarUrl: validImg,
+        currentSkin: skin,
+        role: saved.profile.role || 'pioneer',
+        referralCode: saved.profile.referralCode || ('PIHAMSTER' + Math.floor(1000 + Math.random() * 9000)),
+        isPiConnected: Boolean(cachedUser) || Boolean(saved.profile.isPiConnected),
+        piUid: cachedUser?.uid || saved.profile.piUid,
+      };
+    }
+
     return {
       id: 'pioneer_' + Math.random().toString(36).substring(2, 9),
       username: cachedUser ? cachedUser.username : 'Pioneer_Guest',
@@ -153,50 +211,128 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   });
 
-  const [balance, setBalance] = useState<PlayerBalance>(() => ({
-    points: 1250,
-    lifetimePoints: 1250,
-    goldenSeeds: 5,
-  }));
+  const [balance, setBalance] = useState<PlayerBalance>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.balance && typeof saved.balance.points === 'number' && !isNaN(saved.balance.points)) {
+      return saved.balance;
+    }
+    return {
+      points: 1250,
+      lifetimePoints: 1250,
+      goldenSeeds: 5,
+    };
+  });
 
-  const [stats, setStats] = useState<PlayerStats>(() => ({
-    level: 1,
-    levelTitle: 'Bronze Hamster',
-    totalTaps: 0,
-    tapPower: 2,
-    passiveRatePerSec: 0,
-    passiveRatePerHour: 0,
-    criticalChance: 0.05,
-    criticalMultiplier: 2.0,
-    loginStreak: 1,
-    lastLoginDate: getTodayDateString(),
-    lastDailyClaimDate: undefined,
-    minigamesPlayed: 0,
-    highestMinigameScore: 0,
-    referralCount: 2,
-    activeBoosterMultiplier: 1.0,
-    activeBoosterExpiresAt: 0,
-  }));
+  const [stats, setStats] = useState<PlayerStats>(() => {
+    const saved = loadSavedGameData();
+    const today = getTodayDateString();
+    const yesterday = getYesterdayDateString();
 
-  const [energy, setEnergy] = useState<EnergyState>(() => ({
-    current: 1000,
-    max: 1000,
-    regenRatePerSec: 3,
-  }));
+    if (saved?.stats) {
+      let streak = saved.stats.loginStreak || 1;
+      const lastClaim = saved.stats.lastDailyClaimDate;
+      if (lastClaim && lastClaim !== today && lastClaim !== yesterday) {
+        streak = 1;
+      }
+      return {
+        ...saved.stats,
+        loginStreak: streak,
+        lastLoginDate: today,
+        lastDailyClaimDate: lastClaim,
+      };
+    }
 
-  const [upgrades, setUpgrades] = useState<UpgradeItem[]>(INITIAL_UPGRADES);
-  const [missions, setMissions] = useState<Mission[]>(INITIAL_MISSIONS);
-  const [achievements, setAchievements] = useState<Achievement[]>(INITIAL_ACHIEVEMENTS);
+    return {
+      level: 1,
+      levelTitle: 'Bronze Hamster',
+      totalTaps: 0,
+      tapPower: 2,
+      passiveRatePerSec: 0,
+      passiveRatePerHour: 0,
+      criticalChance: 0.05,
+      criticalMultiplier: 2.0,
+      loginStreak: 1,
+      lastLoginDate: today,
+      lastDailyClaimDate: undefined,
+      minigamesPlayed: 0,
+      highestMinigameScore: 0,
+      referralCount: 2,
+      activeBoosterMultiplier: 1.0,
+      activeBoosterExpiresAt: 0,
+    };
+  });
+
+  const [energy, setEnergy] = useState<EnergyState>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.energy) {
+      let current = saved.energy.current;
+      if (saved.lastSavedAt && saved.energy.regenRatePerSec) {
+        const elapsedSec = Math.floor((Date.now() - saved.lastSavedAt) / 1000);
+        if (elapsedSec > 0) {
+          current = Math.min(saved.energy.max, current + elapsedSec * saved.energy.regenRatePerSec);
+        }
+      }
+      return {
+        ...saved.energy,
+        current,
+      };
+    }
+    return {
+      current: 1000,
+      max: 1000,
+      regenRatePerSec: 3,
+    };
+  });
+
+  const [upgrades, setUpgrades] = useState<UpgradeItem[]>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.upgrades && Array.isArray(saved.upgrades)) {
+      const levelMap = new Map<string, number>();
+      saved.upgrades.forEach((u: UpgradeItem) => {
+        if (u && typeof u.currentLevel === 'number') {
+          levelMap.set(u.id, Math.min(30, Math.max(0, u.currentLevel)));
+        }
+      });
+      return INITIAL_UPGRADES.map((master) => ({
+        ...master,
+        maxLevel: 30,
+        currentLevel: levelMap.has(master.id) ? levelMap.get(master.id)! : master.currentLevel,
+      }));
+    }
+    return INITIAL_UPGRADES;
+  });
+
+  const [missions, setMissions] = useState<Mission[]>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.missions && Array.isArray(saved.missions)) {
+      return saved.missions;
+    }
+    return INITIAL_MISSIONS;
+  });
+
+  const [achievements, setAchievements] = useState<Achievement[]>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.achievements && Array.isArray(saved.achievements)) {
+      return saved.achievements;
+    }
+    return INITIAL_ACHIEVEMENTS;
+  });
 
   const [referrals, setReferrals] = useState<ReferralFriend[]>([
     { id: 'ref_1', username: 'CryptoPioneer99', joinedAt: '2 days ago', rewardClaimed: 5000, activeLevel: 3 },
     { id: 'ref_2', username: 'PiMinerHammy', joinedAt: '5 hours ago', rewardClaimed: 5000, activeLevel: 2 },
   ]);
 
-  const [adminSettings, setAdminSettings] = useState<AdminSettings>({
-    tapMultiplier: 1.0,
-    passiveMultiplier: 1.0,
-    broadcastNotice: '🎉 HamsterPi Pi Network Ecosystem: Official authentication and payments active!',
+  const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.adminSettings) {
+      return saved.adminSettings;
+    }
+    return {
+      tapMultiplier: 1.0,
+      passiveMultiplier: 1.0,
+      broadcastNotice: '🎉 HamsterPi Pi Network Ecosystem: Official authentication and payments active!',
+    };
   });
 
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([
@@ -208,117 +344,88 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     { rank: 6, username: 'QuantumPiGamer', levelTitle: 'Bronze Hamster', points: 950, skin: 'default' },
   ]);
 
-  // Initialize Pi SDK on mount
+  // Ref tracking latest state for instant atomic save
+  const latestStateRef = useRef({
+    profile,
+    balance,
+    stats,
+    energy,
+    upgrades,
+    missions,
+    achievements,
+    adminSettings,
+  });
+
+  // Keep latestStateRef updated on every render
   useEffect(() => {
-    setIsPiBrowser(piNetwork.isPiBrowser());
-    piNetwork.init().then((ready) => {
-      setIsPiSdkReady(ready);
-      if (ready && piNetwork.getCurrentUser()) {
-        const u = piNetwork.getCurrentUser()!;
-        setProfile((prev) => ({
-          ...prev,
-          username: u.username,
-          displayName: u.username,
-          piUid: u.uid,
-          isPiConnected: true,
-        }));
-      }
-    });
-  }, []);
+    latestStateRef.current = {
+      profile,
+      balance,
+      stats,
+      energy,
+      upgrades,
+      missions,
+      achievements,
+      adminSettings,
+    };
+  });
 
-  // Load from LocalStorage on mount & compute offline earnings
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw);
-        if (saved.profile) {
-          const skin = (saved.profile.currentSkin && HAMSTER_SKINS[saved.profile.currentSkin as HamsterSkin])
-            ? (saved.profile.currentSkin as HamsterSkin)
-            : 'default';
-          const validImg = HAMSTER_SKINS[skin]?.image || HAMSTER_SKINS.default.image;
-          setProfile((prev) => ({
-            ...prev,
-            ...saved.profile,
-            avatarUrl: validImg,
-            currentSkin: skin,
-            // Keep Pi connection state aligned with Pi client token
-            isPiConnected: Boolean(piNetwork.getCurrentUser()) || saved.profile.isPiConnected,
-            username: piNetwork.getCurrentUser()?.username || saved.profile.username,
-          }));
-        }
-        if (saved.balance) setBalance(saved.balance);
-        if (saved.stats) {
-          const today = getTodayDateString();
-          const yesterday = getYesterdayDateString();
-          let streak = saved.stats.loginStreak || 1;
-          const lastClaim = saved.stats.lastDailyClaimDate;
-
-          // If the player missed a day, reset streak to 1
-          if (lastClaim && lastClaim !== today && lastClaim !== yesterday) {
-            streak = 1;
-          }
-
-          setStats({
-            ...saved.stats,
-            loginStreak: streak,
-            lastLoginDate: today,
-            lastDailyClaimDate: lastClaim,
-          });
-        }
-        if (saved.energy) setEnergy(saved.energy);
-        if (saved.upgrades && Array.isArray(saved.upgrades)) {
-          const levelMap = new Map<string, number>();
-          // Map of legacy IDs to modern upgrade IDs
-          const legacyIdMap: Record<string, string> = {
-            upg_tap_gloves: 'tap_paws_1',
-            upg_paw_guard: 'tap_bionic_paws',
-            upg_gold_paw: 'tap_kinetic_claws',
-            upg_bionic_wheel: 'pass_hamster_wheel',
-            upg_solar_cage: 'pass_seed_press',
-            upg_fusion_core: 'pass_quantum_treadmill',
-            upg_cyber_server: 'pass_crypto_node',
-            upg_energy_battery: 'nrg_battery_pack',
-            upg_speedy_drink: 'rec_sunflower_espresso',
-            upg_royal_crown: 'special_royal_crown',
-            upg_cyber_visor: 'special_cyber_visor',
-          };
-          saved.upgrades.forEach((u: UpgradeItem) => {
-            if (u && typeof u.currentLevel === 'number') {
-              const targetId = legacyIdMap[u.id] || u.id;
-              const lvl = Math.min(30, Math.max(0, u.currentLevel));
-              levelMap.set(targetId, Math.max(levelMap.get(targetId) || 0, lvl));
-            }
-          });
-          const merged = INITIAL_UPGRADES.map((master) => ({
-            ...master,
-            maxLevel: 30,
-            currentLevel: levelMap.has(master.id) ? levelMap.get(master.id)! : master.currentLevel,
-          }));
-          setUpgrades(merged);
-        } else {
-          setUpgrades(INITIAL_UPGRADES);
-        }
-        if (saved.missions) setMissions(saved.missions);
-        if (saved.achievements) setAchievements(saved.achievements);
-        if (saved.adminSettings) setAdminSettings(saved.adminSettings);
-
-        // Calculate offline passive income
-        if (saved.lastSavedAt && saved.stats?.passiveRatePerSec > 0) {
-          const now = Date.now();
-          const elapsedSec = Math.min(Math.floor((now - saved.lastSavedAt) / 1000), 86400 * 3);
-          if (elapsedSec > 10) {
-            const earned = Math.floor(elapsedSec * saved.stats.passiveRatePerSec);
-            if (earned > 0) {
-              setOfflineEarnings({ points: earned, seconds: elapsedSec });
-            }
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Could not restore game state:', e);
+  // Instant atomic save function to guarantee zero data loss on refresh or close
+  const saveGameStateNow = useCallback(() => {
+    if (latestStateRef.current) {
+      saveGameDataImmediate({
+        ...latestStateRef.current,
+        lastSavedAt: Date.now(),
+      });
     }
   }, []);
+
+  // Compute offline earnings on mount from saved timestamp
+  useEffect(() => {
+    const saved = loadSavedGameData();
+    if (saved?.lastSavedAt && saved.stats?.passiveRatePerSec && saved.stats.passiveRatePerSec > 0) {
+      const elapsedSec = Math.min(Math.floor((Date.now() - saved.lastSavedAt) / 1000), 86400 * 3);
+      if (elapsedSec > 10) {
+        const earned = Math.floor(elapsedSec * saved.stats.passiveRatePerSec);
+        if (earned > 0) {
+          setOfflineEarnings({ points: earned, seconds: elapsedSec });
+        }
+      }
+    }
+  }, []);
+
+  // Guarantee persistence before page unload, refresh, or hide
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      saveGameStateNow();
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        saveGameStateNow();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      saveGameStateNow();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [saveGameStateNow]);
+
+  // Periodic safety auto-save
+  useEffect(() => {
+    const timer = setInterval(() => {
+      saveGameStateNow();
+    }, 3000);
+    return () => clearInterval(timer);
+  }, [saveGameStateNow]);
+
 
   // Sync to HTML dir and lang
   useEffect(() => {
@@ -326,29 +433,6 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     localStorage.setItem('hamsterpi_lang', language);
   }, [language]);
-
-  // Auto-save state to LocalStorage periodically
-  useEffect(() => {
-    const timer = setInterval(() => {
-      try {
-        const toSave = {
-          profile,
-          balance,
-          stats,
-          energy,
-          upgrades,
-          missions,
-          achievements,
-          adminSettings,
-          lastSavedAt: Date.now(),
-        };
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-      } catch (err) {
-        console.warn('Storage save error:', err);
-      }
-    }, 4000);
-    return () => clearInterval(timer);
-  }, [profile, balance, stats, energy, upgrades, missions, achievements, adminSettings]);
 
   // Sync Leaderboard player entry when balance changes
   useEffect(() => {
@@ -366,6 +450,25 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       )
     );
   }, [balance.points, stats.levelTitle, profile.currentSkin, profile.username]);
+
+  // Automatically sync genuine player mining stats to Supabase (debounced)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (profile.username) {
+        dbService.syncPlayerMiningStats({
+          piUid: profile.piUid || `pioneer_${profile.username}`,
+          username: profile.username,
+          passiveRatePerHour: stats.passiveRatePerHour,
+          passiveRatePerSec: stats.passiveRatePerSec,
+          points: Math.floor(balance.points),
+          level: stats.level,
+          levelTitle: stats.levelTitle,
+          skin: profile.currentSkin,
+        });
+      }
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [profile.piUid, profile.username, profile.currentSkin, stats.passiveRatePerHour, stats.passiveRatePerSec, stats.level, stats.levelTitle, balance.points]);
 
   // Real-time Game Loop: Passive Points & Energy Regen
   useEffect(() => {
@@ -519,6 +622,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       tapBatchRef.current.count += 1;
       tapBatchRef.current.points += earned;
+      if (tapBatchRef.current.count % 10 === 0) {
+        saveGameStateNow();
+      }
       if (tapBatchRef.current.count >= 20) {
         const batch = { ...tapBatchRef.current };
         tapBatchRef.current = { count: 0, points: 0, startTime: Date.now() };
@@ -579,7 +685,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setFloatingTexts((prev) => prev.filter((item) => item.id !== floatItem.id));
       }, 900);
     },
-    [energy.current, stats, adminSettings.tapMultiplier, hapticEnabled, profile.id]
+    [energy.current, stats, adminSettings.tapMultiplier, hapticEnabled, profile.id, saveGameStateNow]
   );
 
   // Buy or Level-up Upgrade
@@ -619,6 +725,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (upgrade.benefitType === 'tap_power') {
         setStats((prev) => ({ ...prev, tapPower: prev.tapPower + upgrade.baseBenefit }));
+      } else if (upgrade.benefitType === 'passive_per_hour') {
+        setStats((prev) => {
+          const nextPerHour = prev.passiveRatePerHour + upgrade.baseBenefit;
+          const nextPerSec = nextPerHour / 3600;
+          return {
+            ...prev,
+            passiveRatePerHour: nextPerHour,
+            passiveRatePerSec: nextPerSec,
+          };
+        });
       } else if (upgrade.benefitType === 'passive_per_sec') {
         setStats((prev) => {
           const nextRate = prev.passiveRatePerSec + upgrade.baseBenefit;
@@ -651,11 +767,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }));
       } else if (upgrade.benefitType === 'production_efficiency') {
         setStats((prev) => {
-          const multipliedRate = prev.passiveRatePerSec * (1 + upgrade.baseBenefit);
+          const nextPerHour = Math.round(prev.passiveRatePerHour * (1 + upgrade.baseBenefit));
+          const nextPerSec = nextPerHour / 3600;
           return {
             ...prev,
-            passiveRatePerSec: multipliedRate,
-            passiveRatePerHour: Math.round(multipliedRate * 3600),
+            passiveRatePerHour: nextPerHour,
+            passiveRatePerSec: nextPerSec,
           };
         });
       } else if (upgrade.benefitType === 'seed_harvest_rate') {
@@ -704,9 +821,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         })
       );
 
+      // Save state immediately
+      setTimeout(() => {
+        saveGameStateNow();
+      }, 50);
+
       return true;
     },
-    [upgrades, balance.points, stats.level, profile.id]
+    [upgrades, balance.points, stats.level, profile.id, saveGameStateNow]
   );
 
   // Claim Mission Reward
@@ -741,8 +863,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: `Claimed reward for mission: ${mission.title}`,
         metadata: { missionId },
       });
+
+      setTimeout(() => {
+        saveGameStateNow();
+      }, 50);
     },
-    [missions, balance.points, profile.id]
+    [missions, balance.points, profile.id, saveGameStateNow]
   );
 
   // Daily login claim eligibility (strictly once per calendar day)
@@ -802,8 +928,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       description: `Claimed Day ${todayReward.day} daily login streak reward`,
     });
 
+    setTimeout(() => {
+      saveGameStateNow();
+    }, 50);
+
     return true;
-  }, [stats.loginStreak, stats.lastDailyClaimDate, balance.points, profile.id]);
+  }, [stats.loginStreak, stats.lastDailyClaimDate, balance.points, profile.id, saveGameStateNow]);
 
   // Submit Mini Game Result
   const submitMiniGameResult = useCallback(
@@ -851,8 +981,12 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return m;
         })
       );
+
+      setTimeout(() => {
+        saveGameStateNow();
+      }, 50);
     },
-    [balance.points, profile.id]
+    [balance.points, profile.id, saveGameStateNow]
   );
 
   // ============================================================================
@@ -878,66 +1012,45 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [stats.lastAdWatchTime]);
 
   const watchRewardedAd = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
-    const lastWatch = stats.lastAdWatchTime || 0;
-    const elapsed = Date.now() - lastWatch;
-    if (elapsed < AD_COOLDOWN_MS) {
-      const waitMin = Math.ceil((AD_COOLDOWN_MS - elapsed) / 60000);
-      sounds.playError();
-      return { success: false, error: `Ad on cooldown. Please wait ${waitMin} minutes.` };
-    }
+    return {
+      success: false,
+      error: 'The Pi Ad Network integration is currently in review by the Pi Core Team. Video rewards will activate upon approval.',
+    };
+  }, []);
 
-    setIsAdWatching(true);
-    try {
-      const result = await piNetwork.showRewardedAd();
-      if (!result.rewarded) {
-        setIsAdWatching(false);
-        sounds.playError();
-        return { success: false, error: result.reason || 'Ad was closed before completion.' };
-      }
-
-      // Grant Rewarded Ad Bonus: +2,500 points, +2 seeds, +30 min 2X multiplier boost
-      const bonusPoints = 2500;
-      const bonusSeeds = 2;
-      const boostExpires = Date.now() + 30 * 60 * 1000; // 30 minutes
-
-      sounds.playFanfare();
-      confetti({
-        particleCount: 100,
-        spread: 80,
-        origin: { y: 0.6 },
+  // Update custom Pioneer username (for web & pioneer profile customization)
+  const updatePioneerUsername = useCallback(
+    (name: string) => {
+      const clean = name.trim().replace(/^@/, '');
+      if (!clean) return;
+      setProfile((prev) => {
+        const next = {
+          ...prev,
+          username: clean,
+          displayName: clean,
+        };
+        try {
+          const saved = loadSavedGameData() || {};
+          saveGameDataImmediate({ ...saved, profile: next, lastSavedAt: Date.now() });
+        } catch {}
+        return next;
       });
 
-      setBalance((prev) => ({
-        ...prev,
-        points: prev.points + bonusPoints,
-        lifetimePoints: prev.lifetimePoints + bonusPoints,
-        goldenSeeds: prev.goldenSeeds + bonusSeeds,
-      }));
-
-      setStats((prev) => ({
-        ...prev,
-        lastAdWatchTime: Date.now(),
-        activeBoosterMultiplier: Math.max(prev.activeBoosterMultiplier || 1, 2.0),
-        activeBoosterExpiresAt: Math.max(prev.activeBoosterExpiresAt || 0, boostExpires),
-      }));
-
-      dbService.recordTransaction({
-        playerId: profile.id,
-        amount: bonusPoints,
-        balanceAfter: balance.points + bonusPoints,
-        category: 'daily_reward',
-        description: `Pi Ad Network Rewarded Task (+${bonusPoints} points, +${bonusSeeds} seeds, 2x Boost)`,
-        metadata: { adId: result.adId },
-      });
-
-      setIsAdWatching(false);
-      return { success: true };
-    } catch (err: unknown) {
-      setIsAdWatching(false);
-      sounds.playError();
-      return { success: false, error: (err as Error).message };
-    }
-  }, [stats.lastAdWatchTime, balance.points, profile.id]);
+      dbService
+        .syncPlayerMiningStats({
+          piUid: profile.piUid || `pioneer_${clean}`,
+          username: clean,
+          passiveRatePerHour: stats.passiveRatePerHour,
+          passiveRatePerSec: stats.passiveRatePerSec,
+          points: Math.floor(balance.points),
+          level: stats.level,
+          levelTitle: stats.levelTitle,
+          skin: profile.currentSkin,
+        })
+        .catch(() => {});
+    },
+    [profile.piUid, profile.currentSkin, stats, balance.points]
+  );
 
   // Authenticate Pi Network Account
   const connectPiAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
@@ -960,13 +1073,21 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           origin: { y: 0.5 },
         });
 
-        setProfile((prev) => ({
-          ...prev,
+        const updatedProfile: PlayerProfile = {
+          ...profile,
           username: res.user.username,
           displayName: res.user.username,
           piUid: res.user.uid,
           isPiConnected: true,
-        }));
+        };
+
+        setProfile(updatedProfile);
+
+        saveGameDataImmediate({
+          ...latestStateRef.current,
+          profile: updatedProfile,
+          lastSavedAt: Date.now(),
+        });
 
         refreshPaymentHistory();
         return { success: true };
@@ -981,19 +1102,49 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sounds.playError();
       return { success: false, error: message };
     }
-  }, [refreshPaymentHistory]);
+  }, [profile, refreshPaymentHistory]);
 
   const disconnectPiAccount = useCallback(() => {
     piNetwork.signOut();
-    setProfile((prev) => ({
-      ...prev,
+    const guestProfile: PlayerProfile = {
+      ...profile,
       username: 'Pioneer_Guest',
       displayName: 'Pioneer Guest',
       piUid: undefined,
       isPiConnected: false,
-    }));
+    };
+    setProfile(guestProfile);
+    saveGameDataImmediate({
+      ...latestStateRef.current,
+      profile: guestProfile,
+      lastSavedAt: Date.now(),
+    });
     setPaymentHistory([]);
-  }, []);
+  }, [profile]);
+
+  // Initialize Pi SDK on mount & auto-connect inside Pi Browser
+  useEffect(() => {
+    setIsPiBrowser(piNetwork.isPiBrowser());
+    piNetwork.init().then((ready) => {
+      setIsPiSdkReady(ready);
+      if (ready) {
+        if (piNetwork.getCurrentUser()) {
+          const u = piNetwork.getCurrentUser()!;
+          setProfile((prev) => ({
+            ...prev,
+            username: u.username,
+            displayName: u.username,
+            piUid: u.uid,
+            isPiConnected: true,
+          }));
+        } else if (piNetwork.isPiBrowser()) {
+          connectPiAccount().catch((err) => {
+            console.info('[Pi SDK Auto-Auth] Prompting login inside Pi Browser:', err);
+          });
+        }
+      }
+    });
+  }, [connectPiAccount]);
 
   // Purchase Pi Product via Official Pi Payment Lifecycle
   const purchasePiProduct = useCallback(
@@ -1169,6 +1320,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         piAuthError,
         connectPiAccount,
         disconnectPiAccount,
+        updatePioneerUsername,
 
         // Pi Ads Network
         isAdWatching,

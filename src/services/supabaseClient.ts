@@ -74,5 +74,77 @@ export const dbService = {
         console.warn('Failed to record minigame session:', err);
       }
     }
+  },
+
+  async syncPlayerMiningStats(data: {
+    piUid: string;
+    username: string;
+    passiveRatePerHour: number;
+    passiveRatePerSec: number;
+    points: number;
+    level: number;
+    levelTitle: string;
+    skin: string;
+  }) {
+    try {
+      await fetch('/api/player/sync-stats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+    } catch {
+      // Non-blocking sync
+    }
+  },
+
+  async fetchTopMinersLeaderboard(): Promise<any[]> {
+    // 1. Try server backend endpoint
+    try {
+      const res = await fetch('/api/leaderboard/miners');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && Array.isArray(json.miners) && json.miners.length > 0) {
+          return json.miners.map((item: any, index: number) => ({
+            rank: index + 1,
+            username: item.pi_username || item.username || `Pioneer_${index + 1}`,
+            level: item.level || 1,
+            levelTitle: item.level_title || 'Bronze Forager',
+            miningRatePerHour: Number(item.passive_rate_per_hour || 0),
+            miningRatePerSec: Number(item.passive_rate_per_sec || 0),
+            totalPoints: Number(item.points || 0),
+            skin: item.current_skin || 'default',
+          }));
+        }
+      }
+    } catch {
+      // fallback to direct client query
+    }
+
+    // 2. Direct client Supabase query if available
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('top_100_miners')
+          .select('*')
+          .limit(100);
+
+        if (!error && data && data.length > 0) {
+          return data.map((item: any, index: number) => ({
+            rank: index + 1,
+            username: item.pi_username || item.username || `Pioneer_${index + 1}`,
+            level: item.level || 1,
+            levelTitle: item.level_title || 'Bronze Forager',
+            miningRatePerHour: Number(item.passive_rate_per_hour || 0),
+            miningRatePerSec: Number(item.passive_rate_per_sec || 0),
+            totalPoints: Number(item.points || 0),
+            skin: item.current_skin || 'default',
+          }));
+        }
+      } catch (err) {
+        console.warn('Direct Supabase leaderboard query failed:', err);
+      }
+    }
+
+    return [];
   }
 };

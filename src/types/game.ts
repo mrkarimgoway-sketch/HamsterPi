@@ -77,6 +77,7 @@ export type UpgradeCategory =
 export type UpgradeBenefitType =
   | 'tap_power'
   | 'passive_per_sec'
+  | 'passive_per_hour'
   | 'max_energy'
   | 'regen_rate'
   | 'crit_chance'
@@ -140,6 +141,19 @@ export interface LeaderboardEntry {
   username: string;
   levelTitle: string;
   points: number;
+  miningRatePerHour?: number;
+  skin: HamsterSkin;
+  isCurrentPlayer?: boolean;
+}
+
+export interface MinerLeaderboardEntry {
+  rank: number;
+  username: string;
+  level: number;
+  levelTitle: string;
+  miningRatePerHour: number;
+  miningRatePerSec: number;
+  totalPoints: number;
   skin: HamsterSkin;
   isCurrentPlayer?: boolean;
 }

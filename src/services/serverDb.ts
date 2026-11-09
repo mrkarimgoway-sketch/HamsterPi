@@ -311,4 +311,105 @@ export const serverDb = {
       return { synced: false, reason: (err as Error).message };
     }
   },
+
+  /**
+   * Sync genuine Pioneer mining rate and balance to Supabase
+   */
+  async syncPlayerMiningStats(params: {
+    piUid: string;
+    username: string;
+    passiveRatePerHour: number;
+    passiveRatePerSec: number;
+    points: number;
+    level: number;
+    levelTitle: string;
+    skin: string;
+  }) {
+    if (!serverSupabase) return null;
+    try {
+      let profileId: string | null = null;
+      const { data: existing } = await serverSupabase
+        .from('profiles')
+        .select('id')
+        .eq('pi_uid', params.piUid)
+        .maybeSingle();
+
+      if (existing) {
+        profileId = existing.id;
+        await serverSupabase
+          .from('profiles')
+          .update({
+            current_skin: params.skin,
+            last_active_at: new Date().toISOString(),
+          })
+          .eq('id', profileId);
+      } else {
+        const { data: newProf } = await serverSupabase
+          .from('profiles')
+          .insert({
+            pi_uid: params.piUid,
+            pi_username: params.username,
+            display_name: params.username,
+            current_skin: params.skin,
+            last_active_at: new Date().toISOString(),
+          })
+          .select('id')
+          .maybeSingle();
+        profileId = newProf?.id || null;
+      }
+
+      if (!profileId) return null;
+
+      // Upsert real player stats
+      await serverSupabase
+        .from('player_stats')
+        .upsert(
+          {
+            player_id: profileId,
+            passive_rate_per_hour: params.passiveRatePerHour,
+            passive_rate_per_sec: params.passiveRatePerSec,
+            level: params.level,
+            level_title: params.levelTitle,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'player_id' }
+        );
+
+      // Upsert real balance
+      await serverSupabase
+        .from('player_balances')
+        .upsert(
+          {
+            player_id: profileId,
+            points: params.points,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'player_id' }
+        );
+
+      return { success: true };
+    } catch (err) {
+      console.warn('[Server DB] Error updating real player mining stats:', err);
+      return null;
+    }
+  },
+
+  /**
+   * Fetch genuine Pioneers ranked by mining rate from top_100_miners view
+   */
+  async getRealTopMiners() {
+    if (!serverSupabase) return [];
+    try {
+      const { data, error } = await serverSupabase
+        .from('top_100_miners')
+        .select('*')
+        .limit(100);
+
+      if (error || !data) return [];
+      return data;
+    } catch (err) {
+      console.warn('[Server DB] Error fetching real top miners:', err);
+      return [];
+    }
+  },
 };

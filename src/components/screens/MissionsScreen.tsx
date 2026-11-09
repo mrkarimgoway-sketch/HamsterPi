@@ -215,50 +215,28 @@ export const MissionsScreen: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Button & Cooldown */}
-        {adCooldownRemainingMs > 0 ? (
-          <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900/90 border border-purple-900/30 mt-2">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-purple-400 animate-spin" />
-              <span className="text-xs text-slate-300 font-medium">
-                {language === 'ar' ? 'الإعلان القادم متاح بعد:' : 'Next Ad Available In:'}
-              </span>
-            </div>
-            <span className="text-xs font-mono font-bold text-purple-300 bg-purple-950/60 px-2.5 py-1 rounded-lg border border-purple-800/50">
-              {formatCooldown(adCooldownRemainingMs)}
+        {/* Action Button: Safely Frozen Pending Pi Core Team Review */}
+        <div className="mt-2 space-y-2">
+          <button
+            disabled={true}
+            className="w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-slate-800/80 border border-slate-700/60 text-slate-400 cursor-not-allowed opacity-90 shadow-inner"
+          >
+            <Clock className="w-4 h-4 text-purple-400" />
+            <span>
+              {language === 'ar'
+                ? 'إعلانات باي: مجمدة مؤقتاً (قيد مراجعة فريق باي)'
+                : 'Pi Ads: Temporarily Frozen (In Review by Pi Core Team)'}
+            </span>
+          </button>
+          <div className="p-2 rounded-xl bg-purple-950/30 border border-purple-800/30 text-[11px] text-purple-300/90 flex items-start gap-2">
+            <span className="font-bold text-amber-400 shrink-0">ℹ️</span>
+            <span>
+              {language === 'ar'
+                ? 'إعلانات مكافآت باي الرسمية تخضع لمراجعة واعتماد فريق باي الأساسي. تم تجميد الزر لحماية استقرار اللعبة، وسيتفعل فور اعتماد وحدة الإعلانات للتطبيق.'
+                : 'Official Pi Rewarded Video Ads are currently under review by the Pi Core Team. This feature is safely paused to prevent glitches and will automatically activate once approved.'}
             </span>
           </div>
-        ) : (
-          <button
-            onClick={handleWatchAd}
-            disabled={isAdWatching}
-            className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all mt-1 ${
-              isAdWatching
-                ? 'bg-purple-800/60 text-purple-300 cursor-wait'
-                : 'bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 text-white hover:brightness-110 active:scale-[0.98] shadow-md shadow-purple-900/40'
-            }`}
-          >
-            {isAdWatching ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>{language === 'ar' ? 'جارٍ تشغيل إعلان باي...' : 'Playing Pi Video Ad...'}</span>
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 fill-white" />
-                <span>
-                  {language === 'ar' ? 'شاهد الإعلان الآن (+2,500 π)' : 'Watch Video Ad (+2,500 π & Boost)'}
-                </span>
-              </>
-            )}
-          </button>
-        )}
-
-        {adFeedback && (
-          <p className="text-[11px] text-amber-400 text-center mt-2 bg-amber-950/40 py-1 px-2 rounded border border-amber-800/40">
-            {adFeedback}
-          </p>
-        )}
+        </div>
       </div>
 
       {/* Daily / Weekly Selector */}

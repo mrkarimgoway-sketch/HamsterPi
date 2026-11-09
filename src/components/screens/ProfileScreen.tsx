@@ -17,6 +17,7 @@ import {
   Copy,
   Check,
   AlertCircle,
+  Edit2,
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
@@ -42,12 +43,15 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
     piAuthError,
     connectPiAccount,
     disconnectPiAccount,
+    updatePioneerUsername,
     upgrades,
   } = useGame();
 
   const t = translations[language];
   const [copiedLink, setCopiedLink] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(profile.username === 'Pioneer_Guest' ? '' : profile.username);
 
   const getAchievementIcon = (iconName: string) => {
     switch (iconName) {
@@ -137,14 +141,71 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              <h2 className="text-base font-bold text-slate-100 truncate">
-                {isPiConnected ? `@${profile.username}` : profile.username}
-              </h2>
-              {isPiConnected && (
-                <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-              )}
-            </div>
+            {isEditingName ? (
+              <div className="flex items-center gap-1.5 mt-1">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  placeholder={language === 'ar' ? 'اسم رائد باي...' : 'Your Pioneer Name...'}
+                  maxLength={24}
+                  className="w-full text-xs px-2 py-1 rounded-lg bg-slate-900 border border-amber-500/60 text-slate-100 focus:outline-none focus:ring-1 focus:ring-amber-400 font-bold"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    if (nameInput.trim()) {
+                      updatePioneerUsername(nameInput.trim());
+                    }
+                    setIsEditingName(false);
+                  }}
+                  className="px-2 py-1 rounded bg-amber-500 text-slate-950 font-bold text-[11px] shrink-0"
+                >
+                  {language === 'ar' ? 'حفظ' : 'Save'}
+                </button>
+                <button
+                  onClick={() => {
+                    setNameInput(profile.username);
+                    setIsEditingName(false);
+                  }}
+                  className="px-1.5 py-1 rounded bg-slate-800 text-slate-300 text-[11px] shrink-0"
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <h2 className="text-base font-bold text-slate-100 truncate">
+                  {isPiConnected ? `@${profile.username}` : profile.username}
+                </h2>
+                {isPiConnected ? (
+                  <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+                ) : (
+                  <button
+                    onClick={() => {
+                      setNameInput(profile.username === 'Pioneer_Guest' ? '' : profile.username);
+                      setIsEditingName(true);
+                    }}
+                    className="p-1 rounded text-slate-400 hover:text-amber-400 hover:bg-slate-800/60 transition-colors"
+                    title={language === 'ar' ? 'تعديل اسم الرائد' : 'Edit Pioneer Name'}
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {!isPiConnected && !isEditingName && profile.username === 'Pioneer_Guest' && (
+              <button
+                onClick={() => {
+                  setNameInput('');
+                  setIsEditingName(true);
+                }}
+                className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold underline mt-0.5 inline-block text-left"
+              >
+                {language === 'ar' ? '✎ اضغط هنا لتعيين اسم حسابك' : '✎ Click to set your Pioneer username'}
+              </button>
+            )}
 
             <div className="text-xs text-amber-400 font-semibold mt-0.5">
               {stats.levelTitle} · Level {stats.level}

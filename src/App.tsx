@@ -40,6 +40,7 @@ function GameContent() {
           onOpenLeaderboard={() => setShowLeaderboard(true)}
           onOpenReferrals={() => setShowReferrals(true)}
           onOpenPiStore={() => setShowPiStore(true)}
+          onOpenProfile={() => setCurrentTab('profile')}
         />
 
         {/* Dynamic Screen View */}

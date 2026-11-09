@@ -132,6 +132,10 @@ export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore })
     switch (upgrade.benefitType) {
       case 'tap_power':
         return t.upgrades.benefitTap.replace('{value}', String(upgrade.baseBenefit));
+      case 'passive_per_hour':
+        return t.upgrades.benefitPassiveHour
+          ? t.upgrades.benefitPassiveHour.replace('{value}', upgrade.baseBenefit.toLocaleString())
+          : `+${upgrade.baseBenefit.toLocaleString()}/hr`;
       case 'passive_per_sec':
         return t.upgrades.benefitPassive.replace('{value}', String(upgrade.baseBenefit));
       case 'max_energy':
