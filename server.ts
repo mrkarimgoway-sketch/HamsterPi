@@ -51,7 +51,7 @@ app.get('/api/pi/config', (_req: Request, res: Response) => {
  * Pi Network Domain Verification Key
  */
 app.get('/validation-key.txt', (_req: Request, res: Response) => {
-  res.type('text/plain').send('88cdd3d6a64aaca579501b72a8a96ca97c1b03568ba88681fc40aad6c3e5aef6dfc6ddf2f6b66498762db51d1e01561b0b5b091ab009e381aa11c45e88e649b7');
+  res.type('text/plain').send('e1acb40ce7a0923109f52eb732154870da6bd4754b88b70b52cc24c30493de05a8e7cbc16d120c3771e6bb59c2fca4ea1a2909d08f640879e666bdd6a38a63a0');
 });
 
 /**
