@@ -6,6 +6,6 @@
     { "source": "/terms", "destination": "/terms.html" },
     { "source": "/terms/", "destination": "/terms.html" },
     { "source": "/validation-key.txt", "destination": "/validation-key.txt" },
-    { "source": "/((?!privacy|terms|validation-key\\.txt|assets|images|.*\\..*).*)", "destination": "/index.html" }
+    { "source": "/((?!api|privacy|terms|validation-key\\.txt|assets|images|.*\\..*).*)", "destination": "/index.html" }
   ]
 }

@@ -550,7 +550,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!profile.piUid) return;
     try {
       const res = await fetch(`/api/pi/payments/history?uid=${profile.piUid}`);
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
         if (data.history) setPaymentHistory(data.history);
       }

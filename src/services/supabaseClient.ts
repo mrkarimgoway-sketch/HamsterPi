@@ -101,7 +101,8 @@ export const dbService = {
     // 1. Try server backend endpoint
     try {
       const res = await fetch('/api/leaderboard/miners');
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const json = await res.json();
         if (json.success && Array.isArray(json.miners) && json.miners.length > 0) {
           return json.miners.map((item: any, index: number) => ({
