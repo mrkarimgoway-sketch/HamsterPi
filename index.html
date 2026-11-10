@@ -25,6 +25,33 @@
 
     <!-- Official Pi Network SDK -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+
+    <!-- Mobile Touch & Tap Highlight Neutralization -->
+    <style>
+      *, *::before, *::after {
+        -webkit-tap-highlight-color: transparent !important;
+        -webkit-touch-callout: none !important;
+        outline: none !important;
+      }
+      body {
+        -webkit-user-select: none !important;
+        user-select: none !important;
+        touch-action: manipulation;
+      }
+      img {
+        -webkit-user-drag: none !important;
+        pointer-events: none !important;
+      }
+      button, a {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent !important;
+        outline: none !important;
+      }
+      button:focus, button:active, div:focus, div:active {
+        outline: none !important;
+        box-shadow: none !important;
+      }
+    </style>
   </head>
   <body class="bg-slate-950 text-slate-100 antialiased select-none overflow-x-hidden min-h-screen">
     <div id="root"></div>

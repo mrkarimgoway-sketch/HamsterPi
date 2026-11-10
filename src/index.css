@@ -9,19 +9,51 @@
     --font-mono: 'JetBrains Mono', monospace;
   }
 
-  * {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
+  *, *::before, *::after {
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    outline: none !important;
   }
 
   body {
     font-family: var(--font-jakarta);
     background-color: #05060d;
     color: #f8fafc;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
   }
 
   h1, h2, h3, h4, .font-heading {
     font-family: var(--font-outfit);
+  }
+
+  img {
+    -webkit-user-drag: none !important;
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    pointer-events: none;
+  }
+
+  button, a, [role="button"] {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    outline: none !important;
+  }
+
+  button:focus, button:focus-visible, button:active,
+  a:focus, a:focus-visible, a:active {
+    outline: none !important;
+    box-shadow: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  input, textarea {
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
 }
 

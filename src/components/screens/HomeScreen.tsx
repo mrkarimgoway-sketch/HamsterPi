@@ -119,14 +119,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       {/* Quick Action Badges */}
       <div className="w-full grid grid-cols-2 gap-2 mb-3">
         <button
+          type="button"
           onClick={onOpenDailyModal}
-          className={`rounded-xl p-2.5 flex items-center justify-between text-left transition-all ${
+          className={`rounded-xl p-2.5 flex items-center justify-between text-left transition-all outline-none focus:outline-none focus:ring-0 active:outline-none select-none ${
             isDailyRewardClaimable
               ? 'glass-panel-gold border border-amber-400 shadow-md shadow-amber-500/15 hover:scale-[1.02] active:scale-[0.98]'
               : 'glass-panel border border-slate-800/80 opacity-80 hover:scale-[1.01]'
           }`}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pointer-events-none">
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
               isDailyRewardClaimable
                 ? 'bg-amber-500/20 border border-amber-500/40 text-amber-300'
@@ -143,7 +144,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
           </div>
-          <span className={`text-[11px] font-bold ${
+          <span className={`text-[11px] font-bold pointer-events-none ${
             isDailyRewardClaimable ? 'text-amber-300' : 'text-emerald-400 font-mono'
           }`}>
             {isDailyRewardClaimable ? t.missions.claim : '✓'}
@@ -151,10 +152,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </button>
 
         <button
+          type="button"
           onClick={() => onNavigate('games')}
-          className="glass-panel-purple rounded-xl p-2.5 flex items-center justify-between text-left hover:scale-[1.02] active:scale-[0.98] transition-all"
+          className="glass-panel-purple rounded-xl p-2.5 flex items-center justify-between text-left hover:scale-[1.02] active:scale-[0.98] transition-all outline-none focus:outline-none focus:ring-0 active:outline-none select-none"
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pointer-events-none">
             <div className="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
               <Flame className="w-4 h-4" />
             </div>
@@ -163,28 +165,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="text-[10px] text-purple-400/80 font-medium">5 Games</div>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-purple-300">Play</span>
+          <span className="text-[11px] font-bold text-purple-300 pointer-events-none">Play</span>
         </button>
       </div>
 
       {/* Active Booster Indicator */}
       {stats.activeBoosterExpiresAt && Date.now() < stats.activeBoosterExpiresAt && (
-        <div className="w-full mb-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-600/30 to-amber-500/20 border border-amber-400/50 flex items-center justify-between text-xs font-bold text-amber-300 animate-pulse">
-          <div className="flex items-center gap-1.5">
+        <div className="w-full mb-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-600/30 to-amber-500/20 border border-amber-400/50 flex items-center justify-between text-xs font-bold text-amber-300 animate-pulse select-none">
+          <div className="flex items-center gap-1.5 pointer-events-none">
             <Zap className="w-4 h-4 fill-amber-400" />
             <span>{stats.activeBoosterMultiplier}x Hyper Booster Active!</span>
           </div>
-          <span className="text-[10px] font-mono text-purple-200">
+          <span className="text-[10px] font-mono text-purple-200 pointer-events-none">
             {Math.max(1, Math.round((stats.activeBoosterExpiresAt - Date.now()) / (1000 * 60)))}m left
           </span>
         </div>
       )}
 
       {/* Main Interactive Hamster Character */}
-      <div className="relative flex-1 flex flex-col items-center justify-center my-auto py-2 w-full">
+      <div className="relative flex-1 flex flex-col items-center justify-center my-auto py-2 w-full select-none">
         {/* Combo Indicator */}
         {combo > 3 && (
-          <div className="absolute top-0 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs uppercase tracking-wider animate-bounce shadow-lg shadow-amber-500/40 z-20">
+          <div className="absolute top-0 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs uppercase tracking-wider animate-bounce shadow-lg shadow-amber-500/40 z-20 pointer-events-none select-none">
             {combo}x Combo! 🔥
           </div>
         )}
@@ -193,19 +195,30 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="absolute w-64 h-64 rounded-full bg-gradient-to-tr from-amber-500/15 via-purple-600/15 to-transparent blur-3xl pointer-events-none animate-aura" />
 
         {/* Outer Circular Aura Border */}
-        <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-full p-2 bg-gradient-to-b from-amber-500/40 via-purple-600/30 to-amber-500/10 shadow-2xl flex items-center justify-center">
+        <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-full p-2 bg-gradient-to-b from-amber-500/40 via-purple-600/30 to-amber-500/10 shadow-2xl flex items-center justify-center select-none">
           {/* Inner Clickable Hamster Disc */}
           <button
+            type="button"
             onClick={handleTap}
-            onTouchStart={handleTap}
+            onTouchStart={(e) => {
+              if (e.cancelable) e.preventDefault();
+              handleTap(e);
+            }}
             disabled={energy.current <= 0}
-            className={`group relative w-full h-full rounded-full overflow-hidden border-4 border-amber-400/50 shadow-inner focus:outline-none transition-transform duration-75 select-none ${
+            style={{
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+            }}
+            className={`group relative w-full h-full rounded-full overflow-hidden border-4 border-amber-400/50 shadow-inner outline-none focus:outline-none focus:ring-0 active:outline-none transition-transform duration-75 select-none ${
               isTapped ? 'scale-90 rotate-1' : 'hover:scale-[1.02]'
             } ${energy.current <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'cursor-pointer active:scale-90'}`}
           >
             <img
               src={skin.image || '/images/hamster_mascot_default_1793717666154.jpg'}
               alt={skin.name}
+              draggable={false}
               referrerPolicy="no-referrer"
               onError={(e) => {
                 const target = e.currentTarget as HTMLImageElement;
@@ -213,7 +226,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                   target.src = '/images/hamster_mascot_default_1793717666154.jpg';
                 }
               }}
-              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
+              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105 pointer-events-none select-none"
             />
 
             {/* Subtle Gradient Ring Overlay */}
@@ -221,7 +234,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Energy Empty Warning */}
             {energy.current <= 0 && (
-              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center">
+              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col items-center justify-center p-4 text-center pointer-events-none select-none">
                 <Zap className="w-8 h-8 text-amber-500 mb-1 animate-pulse" />
                 <span className="text-xs font-bold text-amber-300">{t.game.recharging}</span>
               </div>

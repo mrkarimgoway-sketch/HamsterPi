@@ -59,8 +59,9 @@ export const Navigation: React.FC<NavigationProps> = ({ currentTab, onSelectTab 
           return (
             <button
               key={tab.id}
+              type="button"
               onClick={() => onSelectTab(tab.id)}
-              className={`relative flex flex-col items-center justify-center h-full min-h-[44px] transition-all ${
+              className={`relative flex flex-col items-center justify-center h-full min-h-[44px] transition-all outline-none focus:outline-none focus:ring-0 active:outline-none select-none ${
                 isActive
                   ? 'text-amber-400 font-bold'
                   : 'text-slate-400 hover:text-slate-200 font-medium'
