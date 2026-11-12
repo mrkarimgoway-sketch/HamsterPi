@@ -370,94 +370,102 @@ class PiNetworkService {
       memo: `HamsterPi: ${product.name}`,
       metadata: {
         productId: product.id,
-        productName: product.name,
         rewardType: product.rewardType,
-        rewardPayload: product.rewardPayload,
-        clientTimestamp: Date.now(),
       },
     };
 
-    window.Pi.createPayment(paymentData, {
-      onReadyForServerApproval: async (paymentId: string) => {
-        try {
-          if (callbacks.onProgress) callbacks.onProgress('approving');
+    try {
+      window.Pi.createPayment(paymentData, {
+        onReadyForServerApproval: async (paymentId: string) => {
+          try {
+            console.info('[Pi Payments] onReadyForServerApproval called:', paymentId);
+            if (callbacks.onProgress) callbacks.onProgress('approving');
 
-          const response = await fetch('/api/pi/payment/approve', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              paymentId,
-              productId: product.id,
-              accessToken: this.token,
-            }),
-          });
+            const response = await fetch('/api/pi/payment/approve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                paymentId,
+                productId: product.id,
+                accessToken: this.token,
+              }),
+            });
 
-          const contentType = response.headers.get('content-type') || '';
-          if (!contentType.includes('application/json')) {
-            throw new Error(`Server returned status ${response.status} (${response.statusText}). Backend API payment endpoint not available.`);
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+              throw new Error(`Server returned status ${response.status} (${response.statusText}). Payment approval endpoint /api/pi/payment/approve not reachable.`);
+            }
+
+            const data = await response.json();
+            if (!response.ok || data.error) {
+              throw new Error(data.error || 'Server rejected payment approval.');
+            }
+
+            console.info('[Pi Payments] Payment approved on server, awaiting Pi Wallet signature...');
+            if (callbacks.onProgress) callbacks.onProgress('awaiting_signature');
+          } catch (err) {
+            console.error('[Pi Payments] Approval step failed:', err);
+            callbacks.onError(err as Error);
           }
+        },
 
-          const data = await response.json();
-          if (!response.ok || data.error) {
-            throw new Error(data.error || 'Server rejected payment approval.');
+        onReadyForServerCompletion: async (paymentId: string, txid: string) => {
+          try {
+            console.info('[Pi Payments] onReadyForServerCompletion called:', paymentId, 'txid:', txid);
+            if (callbacks.onProgress) callbacks.onProgress('completing');
+
+            const response = await fetch('/api/pi/payment/complete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                paymentId,
+                txid,
+                productId: product.id,
+                accessToken: this.token,
+              }),
+            });
+
+            const contentType = response.headers.get('content-type') || '';
+            if (!contentType.includes('application/json')) {
+              throw new Error(`Server returned status ${response.status} (${response.statusText}). Payment completion endpoint not reachable.`);
+            }
+
+            const result: PaymentCompletionResult = await response.json();
+
+            if (!response.ok || result.status !== 'COMPLETED') {
+              throw new Error(result.error || 'Server failed to finalize payment completion.');
+            }
+
+            callbacks.onSuccess(result);
+          } catch (err) {
+            console.error('[Pi Payments] Completion step failed:', err);
+            callbacks.onError(err as Error);
           }
+        },
 
-          if (callbacks.onProgress) callbacks.onProgress('awaiting_signature');
-        } catch (err) {
-          callbacks.onError(err as Error);
-        }
-      },
-
-      onReadyForServerCompletion: async (paymentId: string, txid: string) => {
-        try {
-          if (callbacks.onProgress) callbacks.onProgress('completing');
-
-          const response = await fetch('/api/pi/payment/complete', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              paymentId,
-              txid,
-              productId: product.id,
-              accessToken: this.token,
-            }),
-          });
-
-          const contentType = response.headers.get('content-type') || '';
-          if (!contentType.includes('application/json')) {
-            throw new Error(`Server returned status ${response.status} (${response.statusText}). Backend API completion endpoint not available.`);
+        onCancel: async (paymentId: string) => {
+          console.info('[Pi Payments] Payment cancelled by user:', paymentId);
+          try {
+            await fetch('/api/pi/payment/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paymentId, accessToken: this.token }),
+            });
+          } catch {
+            // ignore cancellation report error
           }
+          callbacks.onCancel(paymentId);
+        },
 
-          const result: PaymentCompletionResult = await response.json();
-
-          if (!response.ok || result.status !== 'COMPLETED') {
-            throw new Error(result.error || 'Server failed to finalize payment completion.');
-          }
-
-          callbacks.onSuccess(result);
-        } catch (err) {
-          callbacks.onError(err as Error);
-        }
-      },
-
-      onCancel: async (paymentId: string) => {
-        try {
-          await fetch('/api/pi/payment/cancel', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ paymentId, accessToken: this.token }),
-          });
-        } catch {
-          // ignore cancellation report error
-        }
-        callbacks.onCancel(paymentId);
-      },
-
-      onError: (error: Error, payment?: PiPaymentData) => {
-        console.error('[Pi SDK] Payment error:', error, payment);
-        callbacks.onError(error, payment);
-      },
-    });
+        onError: (error: Error, payment?: PiPaymentData) => {
+          console.error('[Pi SDK] Payment error:', error, payment);
+          callbacks.onError(error, payment);
+        },
+      });
+    } catch (createErr: unknown) {
+      console.error('[Pi SDK] Failed to invoke window.Pi.createPayment:', createErr);
+      callbacks.onError(createErr as Error);
+    }
   }
 
   public getCurrentUser(): PiUser | null {

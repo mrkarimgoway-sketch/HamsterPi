@@ -107,11 +107,30 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'hamsterpi_save_v2';
 
-const getTodayDateString = (): string => new Date().toISOString().split('T')[0];
-const getYesterdayDateString = (): string => {
+const getTodayLocalDateString = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getYesterdayLocalDateString = (): string => {
   const d = new Date();
   d.setDate(d.getDate() - 1);
-  return d.toISOString().split('T')[0];
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getCurrentWeekString = (): string => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  return `${d.getFullYear()}-W${weekNo}`;
 };
 
 interface SavedGameData {
@@ -124,6 +143,8 @@ interface SavedGameData {
   achievements?: Achievement[];
   adminSettings?: AdminSettings;
   lastSavedAt?: number;
+  lastDailyResetDate?: string;
+  lastWeeklyResetDate?: string;
 }
 
 const loadSavedGameData = (): SavedGameData | null => {
@@ -225,8 +246,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [stats, setStats] = useState<PlayerStats>(() => {
     const saved = loadSavedGameData();
-    const today = getTodayDateString();
-    const yesterday = getYesterdayDateString();
+    const today = getTodayLocalDateString();
+    const yesterday = getYesterdayLocalDateString();
 
     if (saved?.stats) {
       let streak = saved.stats.loginStreak || 1;
@@ -304,8 +325,33 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [missions, setMissions] = useState<Mission[]>(() => {
     const saved = loadSavedGameData();
+    const today = getTodayLocalDateString();
+    const currentWeek = getCurrentWeekString();
+
     if (saved?.missions && Array.isArray(saved.missions)) {
-      return saved.missions;
+      const isNewDay = !saved.lastDailyResetDate || saved.lastDailyResetDate !== today;
+      const isNewWeek = !saved.lastWeeklyResetDate || saved.lastWeeklyResetDate !== currentWeek;
+
+      return INITIAL_MISSIONS.map((master) => {
+        const savedM = saved.missions?.find((m: Mission) => m.id === master.id);
+        if (!savedM) return master;
+
+        // Reset daily missions on new day
+        if (master.frequency === 'daily' && isNewDay) {
+          return { ...master, currentProgress: 0, isCompleted: false, isClaimed: false };
+        }
+        // Reset weekly missions on new week
+        if (master.frequency === 'weekly' && isNewWeek) {
+          return { ...master, currentProgress: 0, isCompleted: false, isClaimed: false };
+        }
+
+        return {
+          ...master,
+          currentProgress: typeof savedM.currentProgress === 'number' ? savedM.currentProgress : 0,
+          isCompleted: Boolean(savedM.isCompleted),
+          isClaimed: Boolean(savedM.isClaimed),
+        };
+      });
     }
     return INITIAL_MISSIONS;
   });
@@ -375,9 +421,63 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (latestStateRef.current) {
       saveGameDataImmediate({
         ...latestStateRef.current,
+        lastDailyResetDate: getTodayLocalDateString(),
+        lastWeeklyResetDate: getCurrentWeekString(),
         lastSavedAt: Date.now(),
       });
     }
+  }, []);
+
+  // Active midnight rollover check for live app sessions
+  useEffect(() => {
+    const checkMidnightRollover = () => {
+      const today = getTodayLocalDateString();
+      const currentWeek = getCurrentWeekString();
+      const saved = loadSavedGameData();
+      const lastDay = saved?.lastDailyResetDate;
+      const lastWeek = saved?.lastWeeklyResetDate;
+
+      let changed = false;
+
+      if (lastDay && lastDay !== today) {
+        console.info('[Missions] Daily rollover triggered: resetting daily tasks for', today);
+        setMissions((prev) =>
+          prev.map((m) =>
+            m.frequency === 'daily'
+              ? { ...m, currentProgress: 0, isCompleted: false, isClaimed: false }
+              : m
+          )
+        );
+        changed = true;
+      }
+
+      if (lastWeek && lastWeek !== currentWeek) {
+        console.info('[Missions] Weekly rollover triggered: resetting weekly tasks for', currentWeek);
+        setMissions((prev) =>
+          prev.map((m) =>
+            m.frequency === 'weekly'
+              ? { ...m, currentProgress: 0, isCompleted: false, isClaimed: false }
+              : m
+          )
+        );
+        changed = true;
+      }
+
+      if (changed) {
+        try {
+          const current = loadSavedGameData() || {};
+          saveGameDataImmediate({
+            ...current,
+            lastDailyResetDate: today,
+            lastWeeklyResetDate: currentWeek,
+            lastSavedAt: Date.now(),
+          });
+        } catch {}
+      }
+    };
+
+    const interval = setInterval(checkMidnightRollover, 10000);
+    return () => clearInterval(interval);
   }, []);
 
   // Compute offline earnings on mount from saved timestamp
@@ -873,11 +973,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   // Daily login claim eligibility (strictly once per calendar day)
-  const isDailyRewardClaimable = stats.lastDailyClaimDate !== getTodayDateString();
+  const isDailyRewardClaimable = stats.lastDailyClaimDate !== getTodayLocalDateString();
 
   // Claim Daily Login Reward (strictly once per calendar day)
   const claimDailyLogin = useCallback((): boolean => {
-    const todayStr = getTodayDateString();
+    const todayStr = getTodayLocalDateString();
 
     // Prevent duplicate claim on the same day
     if (stats.lastDailyClaimDate === todayStr) {
@@ -885,7 +985,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
 
-    const yesterdayStr = getYesterdayDateString();
+    const yesterdayStr = getYesterdayLocalDateString();
     let currentStreak = stats.loginStreak || 1;
 
     // Reset streak if more than 1 day skipped
@@ -1165,6 +1265,18 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           message: 'Initializing payment with Pi Network...',
         });
 
+        // Watchdog timer: If Pi SDK or network stalls, reset loading after 25s
+        const watchdogTimer = setTimeout(() => {
+          setPaymentStatus({
+            isProcessing: false,
+            step: 'error',
+            error: 'Payment request timed out. Please check your Pi Network connection and ensure PI_API_KEY is configured in your project settings.',
+            message: 'Payment request timed out.',
+          });
+          sounds.playError();
+          resolve({ success: false, error: 'TIMEOUT' });
+        }, 25000);
+
         piNetwork.createPayment(product, {
           onProgress: (step) => {
             setPaymentStatus((prev) => ({
@@ -1180,6 +1292,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
 
           onSuccess: (result: PaymentCompletionResult) => {
+            clearTimeout(watchdogTimer);
             sounds.playFanfare();
             confetti({
               particleCount: 100,
@@ -1225,6 +1338,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
 
           onCancel: (paymentId) => {
+            clearTimeout(watchdogTimer);
             setPaymentStatus({
               isProcessing: false,
               step: 'cancelled',
@@ -1235,6 +1349,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           },
 
           onError: (error) => {
+            clearTimeout(watchdogTimer);
             const msg = error.message || 'Payment processing encountered an error.';
             setPaymentStatus({
               isProcessing: false,
