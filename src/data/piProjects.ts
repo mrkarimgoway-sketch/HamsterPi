@@ -30,6 +30,8 @@ export interface PiEcosystemProject {
   description: string;
   descriptionAr: string;
   fundingTargetPi: number;
+  currentFundingPi: number;
+  backersCount: number;
   plannedFeatures: {
     title: string;
     titleAr: string;
@@ -66,6 +68,8 @@ export const PI_ECOSYSTEM_PROJECTS: PiEcosystemProject[] = [
     description: 'PiMind AI bridges cutting-edge conversational intelligence with seamless Pi utility. Built to empower hundreds of millions of Pioneers across 230+ countries, it provides contextual language understanding, intelligent coding assistance, structured research summarization, and automated document analysis—with all premium tiers accessible exclusively via Pi cryptocurrency.',
     descriptionAr: 'يجمع مشروع PiMind AI بين أحدث تقنيات المحادثة الذكية والاستخدام العملي لعملة باي. صُمم لتمكين ملايين الرواد حول العالم من خلال فهم سياقي متعدد اللغات، ومساعد برمجي متقدم، وتلخيص الأبحاث، وتحليل المستندات، مع إتاحة الاشتراكات حصرياً عبر عملة باي.',
     fundingTargetPi: 300000,
+    currentFundingPi: 134250,
+    backersCount: 4890,
     plannedFeatures: [
       {
         title: 'Intelligent Conversational Assistant',
@@ -193,6 +197,8 @@ export const PI_ECOSYSTEM_PROJECTS: PiEcosystemProject[] = [
     description: 'Pi Battle Arena drops up to 100 players onto dynamic, shifting holographic arenas. Utilizing low-latency state synchronization, strategic weapon loadouts, tactical terrain destruction, and global tournament matchmaking, players compete for seasonal glory. All weapon wraps, armor skins, spectator passes, and tournament registration fees are powered exclusively by Pi cryptocurrency. (100% original IP, no copyrighted assets).',
     descriptionAr: 'تهبط في لعبة Pi Battle Arena بـ 100 لاعب في ساحات ثلاثية الأبعاد متحركة. مع خوادم تزامن فائقة السرعة، وأسلحة تكتيكية، ومطابقة لاعبين دولية، يتنافس الرواد في بطولات موسمية كبرى. جميع المظاهر التجميلية وتذاكر البطولات مفعلة حصرياً بعملة باي (هوية أصلية 100%).',
     fundingTargetPi: 1000000,
+    currentFundingPi: 412800,
+    backersCount: 12640,
     plannedFeatures: [
       {
         title: '100-Player Real-Time Battle Royale',

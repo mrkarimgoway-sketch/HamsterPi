@@ -24,6 +24,7 @@ import {
   Info,
   Layers,
   Loader2,
+  Users,
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { PI_ECOSYSTEM_PROJECTS, PiEcosystemProject } from '../../data/piProjects';
@@ -50,18 +51,63 @@ export const ProjectsScreen: React.FC = () => {
   } | null>(null);
 
   const [userContribution, setUserContribution] = useState<number>(0);
+  const [userContributions, setUserContributions] = useState<Record<string, number>>(() => {
+    if (typeof window === 'undefined') return {};
+    const res: Record<string, number> = {};
+    PI_ECOSYSTEM_PROJECTS.forEach((p) => {
+      try {
+        const val = localStorage.getItem(`hamsterpi_project_contributions_${p.id}`);
+        res[p.id] = val ? parseFloat(val) : 0;
+      } catch {
+        res[p.id] = 0;
+      }
+    });
+    return res;
+  });
+
+  const [liveFunding, setLiveFunding] = useState<Record<string, { collectedPi: number; backersCount: number }>>({});
+
+  // Fetch live aggregated project funding stats
+  React.useEffect(() => {
+    fetch('/api/projects/funding')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data && data.funding) {
+          setLiveFunding(data.funding);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Sync user contribution from localStorage for selected project
   React.useEffect(() => {
     if (selectedProjectId && typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem(`hamsterpi_project_contributions_${selectedProjectId}`);
-        setUserContribution(saved ? parseFloat(saved) : 0);
+        const parsed = saved ? parseFloat(saved) : 0;
+        setUserContribution(parsed);
+        setUserContributions((prev) => ({ ...prev, [selectedProjectId]: parsed }));
       } catch {
         setUserContribution(0);
       }
     }
   }, [selectedProjectId]);
+
+  const getProjectFundingData = (project: PiEcosystemProject) => {
+    const userContributed = userContributions[project.id] || 0;
+    const baseCollected = liveFunding[project.id]?.collectedPi ?? project.currentFundingPi;
+    const totalCollected = baseCollected + userContributed;
+    const percent = Math.min(100, Math.max(0, (totalCollected / project.fundingTargetPi) * 100));
+    const baseBackers = liveFunding[project.id]?.backersCount ?? project.backersCount;
+    const totalBackers = baseBackers + (userContributed > 0 ? 1 : 0);
+    return {
+      totalCollected,
+      target: project.fundingTargetPi,
+      percent,
+      totalBackers,
+      userContributed,
+    };
+  };
 
   const selectedProject = PI_ECOSYSTEM_PROJECTS.find((p) => p.id === selectedProjectId);
 
@@ -162,6 +208,10 @@ export const ProjectsScreen: React.FC = () => {
     if (res.success) {
       const updatedTotal = userContribution + amt;
       setUserContribution(updatedTotal);
+      setUserContributions((prev) => ({
+        ...prev,
+        [selectedProject.id]: updatedTotal,
+      }));
       try {
         localStorage.setItem(
           `hamsterpi_project_contributions_${selectedProject.id}`,
@@ -258,21 +308,52 @@ export const ProjectsScreen: React.FC = () => {
                       </p>
                     </div>
 
-                    {/* Funding Target Tag */}
-                    <div className="mt-4 flex items-center justify-between w-full pt-3 border-t border-slate-800/80">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                        <Coins className="w-4 h-4 text-amber-400" />
-                        <span>{isAr ? 'الهدف التمويلي:' : 'Funding Goal:'}</span>
-                        <strong className="font-mono text-amber-300 font-black">
-                          {project.fundingTargetPi.toLocaleString()} π
-                        </strong>
-                      </div>
+                    {/* Funding Progress Bar */}
+                    {(() => {
+                      const funding = getProjectFundingData(project);
+                      return (
+                        <div className="mt-4 pt-3 border-t border-slate-800/80 w-full space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <Coins className="w-4 h-4 text-amber-400" />
+                              <span className="text-slate-100 font-mono font-bold">
+                                {funding.totalCollected.toLocaleString()} π
+                              </span>
+                              <span className="text-slate-400 text-[11px] font-mono">
+                                / {project.fundingTargetPi.toLocaleString()} π
+                              </span>
+                            </div>
+                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 shadow-sm">
+                              {funding.percent.toFixed(1)}%
+                            </span>
+                          </div>
 
-                      <div className="flex items-center gap-1 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
-                        <span>{isAr ? 'استكشف المشروع' : 'Explore'}</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </div>
-                    </div>
+                          {/* Progress Track */}
+                          <div className="w-full h-2.5 rounded-full bg-slate-950/90 border border-slate-800 p-0.5 overflow-hidden relative shadow-inner">
+                            <div
+                              className="h-full rounded-full transition-all duration-700 relative overflow-hidden bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 shadow-[0_0_12px_rgba(6,182,212,0.6)]"
+                              style={{ width: `${Math.max(4, funding.percent)}%` }}
+                            >
+                              <div className="absolute inset-0 bg-white/20 animate-pulse pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-cyan-400" />
+                              <span>
+                                {funding.totalBackers.toLocaleString()} {isAr ? 'رائد داعم' : 'Pioneers'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
+                              <span>{isAr ? 'استكشف وساهم' : 'Explore & Support'}</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -306,20 +387,52 @@ export const ProjectsScreen: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between w-full pt-3 border-t border-slate-800/80">
-                      <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
-                        <Coins className="w-4 h-4 text-amber-400" />
-                        <span>{isAr ? 'الهدف التمويلي:' : 'Funding Goal:'}</span>
-                        <strong className="font-mono text-amber-300 font-black">
-                          {project.fundingTargetPi.toLocaleString()} π
-                        </strong>
-                      </div>
+                    {/* Funding Progress Bar */}
+                    {(() => {
+                      const funding = getProjectFundingData(project);
+                      return (
+                        <div className="mt-4 pt-3 border-t border-slate-800/80 w-full space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-1.5">
+                              <Coins className="w-4 h-4 text-amber-400" />
+                              <span className="text-slate-100 font-mono font-bold">
+                                {funding.totalCollected.toLocaleString()} π
+                              </span>
+                              <span className="text-slate-400 text-[11px] font-mono">
+                                / {project.fundingTargetPi.toLocaleString()} π
+                              </span>
+                            </div>
+                            <span className="font-mono text-xs font-black px-2 py-0.5 rounded-full bg-amber-950/90 border border-amber-500/50 text-amber-300 shadow-sm">
+                              {funding.percent.toFixed(1)}%
+                            </span>
+                          </div>
 
-                      <div className="flex items-center gap-1 text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
-                        <span>{isAr ? 'استكشف المشروع' : 'Explore'}</span>
-                        <ChevronRight className="w-4 h-4" />
-                      </div>
-                    </div>
+                          {/* Progress Track */}
+                          <div className="w-full h-2.5 rounded-full bg-slate-950/90 border border-slate-800 p-0.5 overflow-hidden relative shadow-inner">
+                            <div
+                              className="h-full rounded-full transition-all duration-700 relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 shadow-[0_0_12px_rgba(245,158,11,0.6)]"
+                              style={{ width: `${Math.max(4, funding.percent)}%` }}
+                            >
+                              <div className="absolute inset-0 bg-white/20 animate-pulse pointer-events-none" />
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                            <div className="flex items-center gap-1">
+                              <Users className="w-3.5 h-3.5 text-amber-400" />
+                              <span>
+                                {funding.totalBackers.toLocaleString()} {isAr ? 'رائد داعم' : 'Pioneers'}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
+                              <span>{isAr ? 'استكشف وساهم' : 'Explore & Support'}</span>
+                              <ChevronRight className="w-4 h-4" />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </div>
               );
@@ -379,41 +492,80 @@ export const ProjectsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* CRITICAL STATS RULE: DATABASE ACTIVATION & VERIFIED CONTRIBUTION */}
-          <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-800/50 shadow-inner">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-purple-900/60 border border-purple-500/40 flex items-center justify-center shrink-0 text-amber-300">
-                <Database className="w-4 h-4" />
-              </div>
-              <div className="flex-1">
-                <h4 className="text-xs font-bold text-purple-200">
-                  {isAr ? 'حالة إحصائيات التمويل الموثقة' : 'Verified Funding Statistics'}
-                </h4>
-                {userContribution > 0 ? (
-                  <div className="mt-2 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                      <span>{isAr ? 'مساهمتك الموثقة في هذا المشروع:' : 'Your verified contribution:'}</span>
+          {/* COMMUNITY FUNDING PROGRESS CARD */}
+          {(() => {
+            const funding = getProjectFundingData(selectedProject);
+            const isAi = selectedProject.id === 'pimind_ai';
+            return (
+              <div className="p-4 rounded-3xl glass-panel border border-slate-800 bg-gradient-to-br from-slate-900/90 via-slate-950 to-purple-950/30 shadow-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-300">
+                      <Coins className="w-4 h-4" />
                     </div>
-                    <span className="font-mono text-sm font-black text-amber-300">
-                      {userContribution.toLocaleString()} π
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        {isAr ? 'التمويل المجتمعي المحقق' : 'Community Funding Progress'}
+                      </div>
+                      <div className="flex items-baseline gap-1.5 mt-0.5">
+                        <span className="text-xl font-mono font-black text-amber-300">
+                          {funding.totalCollected.toLocaleString()} π
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">
+                          / {selectedProject.fundingTargetPi.toLocaleString()} π
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-right">
+                    <span
+                      className={`font-mono text-xs font-black px-2.5 py-1 rounded-full border shadow-sm ${
+                        isAi
+                          ? 'bg-cyan-950/90 border-cyan-500/60 text-cyan-300'
+                          : 'bg-amber-950/90 border-amber-500/60 text-amber-300'
+                      }`}
+                    >
+                      {funding.percent.toFixed(1)}%
+                    </span>
+                    <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-end gap-1 font-medium">
+                      <Users className="w-3 h-3 text-purple-400" />
+                      <span>
+                        {funding.totalBackers.toLocaleString()} {isAr ? 'داعم' : 'Backers'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Progress Bar Track */}
+                <div className="w-full h-3 rounded-full bg-slate-950 border border-slate-800/80 p-0.5 relative overflow-hidden shadow-inner">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 relative overflow-hidden ${
+                      isAi
+                        ? 'bg-gradient-to-r from-cyan-500 via-indigo-500 to-purple-500 shadow-[0_0_14px_rgba(6,182,212,0.7)]'
+                        : 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 shadow-[0_0_14px_rgba(245,158,11,0.7)]'
+                    }`}
+                    style={{ width: `${Math.max(4, funding.percent)}%` }}
+                  >
+                    <div className="absolute inset-0 bg-white/20 animate-pulse pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Personal Support Badge */}
+                {funding.userContributed > 0 && (
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span>{isAr ? 'مساهمتك الموثقة في هذا المشروع:' : 'Your verified support:'}</span>
+                    </div>
+                    <span className="font-mono font-black text-amber-300 text-sm">
+                      {funding.userContributed.toLocaleString()} π
                     </span>
                   </div>
-                ) : (
-                  <p className="text-xs text-amber-300 font-semibold mt-1">
-                    {isAr
-                      ? 'ستظهر إحصائيات التمويل بعد تفعيل قاعدة البيانات.'
-                      : 'Funding statistics will become available after database activation.'}
-                  </p>
                 )}
-                <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
-                  {isAr
-                    ? 'التزاماً بأعلى معايير الشفافية، يتم توثيق مساهماتك مباشرة على بلوكشين شبكة Pi وتخزينها في سجل معاملاتك.'
-                    : 'In strict compliance with transparency standards, your contributions are verified on the Pi Network blockchain and recorded to your account.'}
-                </p>
               </div>
-            </div>
-          </div>
+            );
+          })()}
 
           {/* Project Concept & Detailed Description */}
           <div className="glass-panel rounded-2xl p-4 border border-slate-800 space-y-2">
