@@ -23,18 +23,45 @@ import {
   ChevronRight,
   Info,
   Layers,
+  Loader2,
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { PI_ECOSYSTEM_PROJECTS, PiEcosystemProject } from '../../data/piProjects';
+import { PiProduct } from '../../data/piProducts';
 import { AnimatedGlobe } from '../projects/AnimatedGlobe';
 
 export const ProjectsScreen: React.FC = () => {
-  const { language, isPiConnected, profile } = useGame();
+  const {
+    language,
+    isPiConnected,
+    isPiBrowser,
+    connectPiAccount,
+    purchasePiProduct,
+    paymentStatus,
+    profile,
+  } = useGame();
   const isAr = language === 'ar';
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [contributionAmount, setContributionAmount] = useState<string>('25');
-  const [contributionNotice, setContributionNotice] = useState<string | null>(null);
+  const [contributionNotice, setContributionNotice] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
+  const [userContribution, setUserContribution] = useState<number>(0);
+
+  // Sync user contribution from localStorage for selected project
+  React.useEffect(() => {
+    if (selectedProjectId && typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`hamsterpi_project_contributions_${selectedProjectId}`);
+        setUserContribution(saved ? parseFloat(saved) : 0);
+      } catch {
+        setUserContribution(0);
+      }
+    }
+  }, [selectedProjectId]);
 
   const selectedProject = PI_ECOSYSTEM_PROJECTS.find((p) => p.id === selectedProjectId);
 
@@ -71,21 +98,89 @@ export const ProjectsScreen: React.FC = () => {
     }
   };
 
-  const handleContributeClick = () => {
+  const handleContributeClick = async () => {
+    if (!selectedProject) return;
+
     const amt = parseFloat(contributionAmount);
-    if (isNaN(amt) || amt <= 0) {
-      setContributionNotice(
-        isAr ? 'يرجى إدخال مبلغ صحيح للمساهمة' : 'Please enter a valid Pi contribution amount.'
-      );
+    if (isNaN(amt) || amt < 0.1) {
+      setContributionNotice({
+        type: 'error',
+        message: isAr
+          ? 'يرجى إدخال مبلغ صحيح للمساهمة (الحد الأدنى 0.1 π).'
+          : 'Please enter a valid Pi contribution amount (minimum 0.1 π).',
+      });
       return;
     }
 
-    // Strict compliance feedback: Database is awaiting activation
-    setContributionNotice(
-      isAr
-        ? `جاهز للمنظومة: تم تحضير بروتوكول المساهمة بـ ${amt} π بنجاح على مستوى الواجهة والخوادم. سيتم تفعيل التوثيق المالي بمجرد اكتمال تفعيل حزمة قاعدة بيانات Supabase.`
-        : `Ready for Activation: The ${amt} π contribution protocol is fully prepared at code and server level. Live escrow recording will be enabled immediately upon Supabase database activation.`
-    );
+    if (!isPiBrowser) {
+      setContributionNotice({
+        type: 'error',
+        message: isAr
+          ? 'تتطلب مساهمات Pi الرسمية فتح التطبيق داخل متصفح Pi Browser الرسمي على الهاتف.'
+          : 'Official Pi contributions require opening HamsterPi in the official Pi Browser mobile app.',
+      });
+      return;
+    }
+
+    if (!isPiConnected) {
+      setContributionNotice({
+        type: 'info',
+        message: isAr
+          ? 'جارٍ الاتصال بحسابك في شبكة Pi...'
+          : 'Connecting to your Pi Network account...',
+      });
+      const authRes = await connectPiAccount(true);
+      if (!authRes.success) {
+        setContributionNotice({
+          type: 'error',
+          message: authRes.error || (isAr ? 'فشل تسجيل الدخول بحساب Pi.' : 'Pi authentication failed.'),
+        });
+        return;
+      }
+    }
+
+    setContributionNotice(null);
+
+    // Create authentic Pi payment product for this voluntary project support
+    const supportProduct: PiProduct = {
+      id: `support_${selectedProject.id}_${Date.now()}`,
+      name: `Project Support: ${selectedProject.name}`,
+      nameAr: `دعم مشروع: ${selectedProject.nameAr}`,
+      description: `Voluntary Pi contribution to empower ${selectedProject.name}`,
+      descriptionAr: `مساهمة مجتمعية طوعية لدعم وتطوير مشروع ${selectedProject.nameAr}`,
+      pricePi: amt,
+      icon: 'Coins',
+      badge: 'Project Support',
+      rewardType: 'points_bundle',
+      rewardPayload: {
+        points: Math.round(amt * 100000),
+        seeds: Math.max(10, Math.round(amt * 5)),
+      },
+    };
+
+    const res = await purchasePiProduct(supportProduct);
+    if (res.success) {
+      const updatedTotal = userContribution + amt;
+      setUserContribution(updatedTotal);
+      try {
+        localStorage.setItem(
+          `hamsterpi_project_contributions_${selectedProject.id}`,
+          updatedTotal.toString()
+        );
+      } catch {}
+
+      setContributionNotice({
+        type: 'success',
+        message: isAr
+          ? `🎉 شكراً جزيلاً! تم توثيق مساهمتك بـ ${amt} π لدعم ${selectedProject.nameAr} بنجاح على البلوكشين (TxID: ${res.txid?.substring(0, 10)}...). تم إضافة نقاط الدعم والبذور الذهبية إلى حسابك وحفظ العملية في سجل مدفوعات Pi!`
+          : `🎉 Thank you! Your contribution of ${amt} π to support ${selectedProject.name} was successfully completed on-chain (TxID: ${res.txid?.substring(0, 10)}...). Bonus points & Golden Seeds have been granted, and your payment is recorded in Pi Payment History!`,
+      });
+    } else if (res.error && res.error !== 'PAYMENT_CANCELLED') {
+      setContributionNotice({
+        type: 'error',
+        message: res.error,
+      });
+    }
   };
 
   return (
@@ -284,25 +379,37 @@ export const ProjectsScreen: React.FC = () => {
             </div>
           </div>
 
-          {/* CRITICAL STATS RULE: DATABASE ACTIVATION NOTICE */}
+          {/* CRITICAL STATS RULE: DATABASE ACTIVATION & VERIFIED CONTRIBUTION */}
           <div className="p-4 rounded-2xl bg-purple-950/40 border border-purple-800/50 shadow-inner">
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 rounded-xl bg-purple-900/60 border border-purple-500/40 flex items-center justify-center shrink-0 text-amber-300">
                 <Database className="w-4 h-4" />
               </div>
-              <div>
+              <div className="flex-1">
                 <h4 className="text-xs font-bold text-purple-200">
                   {isAr ? 'حالة إحصائيات التمويل الموثقة' : 'Verified Funding Statistics'}
                 </h4>
-                <p className="text-xs text-amber-300 font-semibold mt-1">
-                  {isAr
-                    ? 'ستظهر إحصائيات التمويل بعد تفعيل قاعدة البيانات.'
-                    : 'Funding statistics will become available after database activation.'}
-                </p>
+                {userContribution > 0 ? (
+                  <div className="mt-2 p-2.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                      <span>{isAr ? 'مساهمتك الموثقة في هذا المشروع:' : 'Your verified contribution:'}</span>
+                    </div>
+                    <span className="font-mono text-sm font-black text-amber-300">
+                      {userContribution.toLocaleString()} π
+                    </span>
+                  </div>
+                ) : (
+                  <p className="text-xs text-amber-300 font-semibold mt-1">
+                    {isAr
+                      ? 'ستظهر إحصائيات التمويل بعد تفعيل قاعدة البيانات.'
+                      : 'Funding statistics will become available after database activation.'}
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">
                   {isAr
-                    ? 'التزاماً بأعلى معايير الشفافية، لا يتم عرض أي أرقام مساهمات وهمية أو أشرطة تقدم صورية حتى يتم تشغيل سجل المعاملات على قاعدة بيانات Supabase.'
-                    : 'In strict compliance with transparency standards, no simulated or fictional collected balances are shown until live records are verified through Supabase.'}
+                    ? 'التزاماً بأعلى معايير الشفافية، يتم توثيق مساهماتك مباشرة على بلوكشين شبكة Pi وتخزينها في سجل معاملاتك.'
+                    : 'In strict compliance with transparency standards, your contributions are verified on the Pi Network blockchain and recorded to your account.'}
                 </p>
               </div>
             </div>
@@ -425,9 +532,10 @@ export const ProjectsScreen: React.FC = () => {
 
             {/* Quick Amount Selector Chips */}
             <div className="grid grid-cols-4 gap-2">
-              {['5', '25', '100', '500'].map((val) => (
+              {['1', '5', '25', '100'].map((val) => (
                 <button
                   key={val}
+                  type="button"
                   onClick={() => setContributionAmount(val)}
                   className={`py-1.5 rounded-xl font-mono text-xs font-bold border transition-all ${
                     contributionAmount === val
@@ -459,21 +567,54 @@ export const ProjectsScreen: React.FC = () => {
             {/* Contribution Button */}
             <button
               onClick={handleContributeClick}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-950/40 active:scale-98 transition-all"
+              disabled={paymentStatus.isProcessing}
+              className={`w-full py-3 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg transition-all ${
+                paymentStatus.isProcessing
+                  ? 'bg-slate-800 border border-slate-700 text-slate-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-950/40 active:scale-98'
+              }`}
             >
-              <Coins className="w-4 h-4 text-amber-300" />
-              <span>
-                {isAr
-                  ? `دعم المشروع بـ ${contributionAmount || 0} π`
-                  : `Support Project with ${contributionAmount || 0} π`}
-              </span>
+              {paymentStatus.isProcessing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                  <span>
+                    {paymentStatus.message ||
+                      (isAr ? 'جارٍ معالجة الدفع مع شبكة Pi...' : 'Processing Pi payment...')}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Coins className="w-4 h-4 text-amber-300" />
+                  <span>
+                    {isAr
+                      ? `دعم المشروع بـ ${contributionAmount || 0} π`
+                      : `Support Project with ${contributionAmount || 0} π`}
+                  </span>
+                </>
+              )}
             </button>
 
             {/* Notice Output */}
             {contributionNotice && (
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/50 text-xs text-amber-200 leading-relaxed flex items-start gap-2 animate-in fade-in">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <p>{contributionNotice}</p>
+              <div
+                className={`p-3 rounded-xl text-xs leading-relaxed flex items-start gap-2 animate-in fade-in ${
+                  contributionNotice.type === 'success'
+                    ? 'bg-emerald-950/80 border border-emerald-500/60 text-emerald-200'
+                    : contributionNotice.type === 'error'
+                    ? 'bg-rose-950/80 border border-rose-500/60 text-rose-200'
+                    : 'bg-purple-950/80 border border-purple-500/60 text-purple-200'
+                }`}
+              >
+                {contributionNotice.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle
+                    className={`w-4 h-4 shrink-0 mt-0.5 ${
+                      contributionNotice.type === 'error' ? 'text-rose-400' : 'text-purple-400'
+                    }`}
+                  />
+                )}
+                <p>{contributionNotice.message}</p>
               </div>
             )}
           </div>
