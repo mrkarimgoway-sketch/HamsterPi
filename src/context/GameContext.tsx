@@ -1229,16 +1229,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     piNetwork.init().then((ready) => {
       setIsPiSdkReady(ready);
       if (ready) {
-        if (piNetwork.getCurrentUser()) {
-          const u = piNetwork.getCurrentUser()!;
-          setProfile((prev) => ({
-            ...prev,
-            username: u.username,
-            displayName: u.username,
-            piUid: u.uid,
-            isPiConnected: true,
-          }));
-        } else if (piNetwork.isPiBrowser()) {
+        if (piNetwork.isPiBrowser()) {
           connectPiAccount().catch((err) => {
             console.info('[Pi SDK Auto-Auth] Prompting login inside Pi Browser:', err);
           });
