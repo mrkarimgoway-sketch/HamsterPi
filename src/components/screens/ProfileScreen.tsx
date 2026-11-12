@@ -74,7 +74,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
 
   const handleConnect = async () => {
     setIsConnecting(true);
-    await connectPiAccount();
+    await connectPiAccount(true);
     setIsConnecting(false);
   };
 

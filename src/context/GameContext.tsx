@@ -80,7 +80,7 @@ interface GameContextType {
   isPiConnected: boolean;
   isPiSdkReady: boolean;
   piAuthError: string | null;
-  connectPiAccount: () => Promise<{ success: boolean; error?: string }>;
+  connectPiAccount: (isManual?: boolean) => Promise<{ success: boolean; error?: string }>;
   disconnectPiAccount: () => void;
   updatePioneerUsername: (name: string) => void;
   // Pi Ads Network (3-Hour Rewarded Ad Task)
@@ -106,6 +106,29 @@ interface GameContextType {
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'hamsterpi_save_v2';
+const PI_TRANSACTIONS_STORAGE_KEY = 'hamsterpi_tx_history';
+
+const loadSavedPaymentHistory = (): PaymentTransactionRecord[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(PI_TRANSACTIONS_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch (e) {
+    console.warn('[Payments] Failed to read tx history from localStorage:', e);
+  }
+  return [];
+};
+
+const savePaymentHistoryToStorage = (history: PaymentTransactionRecord[]): void => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(PI_TRANSACTIONS_STORAGE_KEY, JSON.stringify(history));
+  } catch (e) {
+    console.warn('[Payments] Failed to save tx history to localStorage:', e);
+  }
+};
 
 const getTodayLocalDateString = (): string => {
   const d = new Date();
@@ -190,7 +213,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     isProcessing: false,
     step: 'idle',
   });
-  const [paymentHistory, setPaymentHistory] = useState<PaymentTransactionRecord[]>([]);
+  const [paymentHistory, setPaymentHistory] = useState<PaymentTransactionRecord[]>(() => {
+    return loadSavedPaymentHistory();
+  });
 
   // =========================================================================
   // CORE GAME STATE: SYNCHRONOUSLY RESTORED FROM LOCALSTORAGE (NEVER WIPED)
@@ -234,8 +259,19 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const [balance, setBalance] = useState<PlayerBalance>(() => {
     const saved = loadSavedGameData();
-    if (saved?.balance && typeof saved.balance.points === 'number' && !isNaN(saved.balance.points)) {
-      return saved.balance;
+    if (
+      saved?.balance &&
+      typeof saved.balance.points === 'number' &&
+      isFinite(saved.balance.points) &&
+      !isNaN(saved.balance.points)
+    ) {
+      return {
+        points: Math.max(0, Math.min(saved.balance.points, 1000000000)),
+        lifetimePoints: isFinite(saved.balance.lifetimePoints)
+          ? Math.max(0, Math.min(saved.balance.lifetimePoints, 1000000000))
+          : Math.max(0, Math.min(saved.balance.points, 1000000000)),
+        goldenSeeds: isFinite(saved.balance.goldenSeeds) ? Math.max(0, saved.balance.goldenSeeds) : 5,
+      };
     }
     return {
       points: 1250,
@@ -483,14 +519,42 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Compute offline earnings on mount from saved timestamp
   useEffect(() => {
     const saved = loadSavedGameData();
-    if (saved?.lastSavedAt && saved.stats?.passiveRatePerSec && saved.stats.passiveRatePerSec > 0) {
-      const elapsedSec = Math.min(Math.floor((Date.now() - saved.lastSavedAt) / 1000), 86400 * 3);
-      if (elapsedSec > 10) {
-        const earned = Math.floor(elapsedSec * saved.stats.passiveRatePerSec);
-        if (earned > 0) {
+    const now = Date.now();
+    const minValidTimestamp = now - 30 * 24 * 3600 * 1000;
+
+    if (
+      saved?.lastSavedAt &&
+      typeof saved.lastSavedAt === 'number' &&
+      isFinite(saved.lastSavedAt) &&
+      saved.lastSavedAt > minValidTimestamp &&
+      saved.lastSavedAt <= now &&
+      saved.stats?.passiveRatePerSec &&
+      isFinite(saved.stats.passiveRatePerSec) &&
+      saved.stats.passiveRatePerSec > 0
+    ) {
+      // Standard Hamster Kombat offline earnings cap is 3 hours (10,800 seconds max)
+      const MAX_OFFLINE_SECONDS = 3 * 3600;
+      const rawElapsed = Math.floor((now - saved.lastSavedAt) / 1000);
+      const elapsedSec = Math.min(Math.max(0, rawElapsed), MAX_OFFLINE_SECONDS);
+
+      // Only award if user was offline for at least 60 seconds
+      if (elapsedSec >= 60) {
+        const safeRate = Math.min(Math.max(0, saved.stats.passiveRatePerSec), 50000);
+        const rawEarned = elapsedSec * safeRate;
+        if (isFinite(rawEarned) && rawEarned > 0) {
+          const earned = Math.min(Math.floor(rawEarned), 1000000);
           setOfflineEarnings({ points: earned, seconds: elapsedSec });
         }
       }
+    }
+
+    // Immediately mark lastSavedAt as now to prevent duplicate trigger on instant refresh
+    const currentData = loadSavedGameData();
+    if (currentData) {
+      saveGameDataImmediate({
+        ...currentData,
+        lastSavedAt: now,
+      });
     }
   }, []);
 
@@ -647,16 +711,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Fetch payment history
   const refreshPaymentHistory = useCallback(async () => {
-    if (!profile.piUid) return;
     try {
-      const res = await fetch(`/api/pi/payments/history?uid=${profile.piUid}`);
+      const uidParam = profile.piUid ? `?uid=${encodeURIComponent(profile.piUid)}` : '';
+      const res = await fetch(`/api/pi/payments/history${uidParam}`);
       const contentType = res.headers.get('content-type') || '';
       if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        if (data.history) setPaymentHistory(data.history);
+        if (data.history && Array.isArray(data.history) && data.history.length > 0) {
+          setPaymentHistory((prev) => {
+            const map = new Map<string, PaymentTransactionRecord>();
+            // Add server records
+            data.history.forEach((rec: PaymentTransactionRecord) => {
+              if (rec && (rec.pi_payment_id || rec.id)) {
+                const key = rec.pi_payment_id || rec.id;
+                map.set(key, rec);
+              }
+            });
+            // Keep local records
+            prev.forEach((rec) => {
+              if (rec) {
+                const key = rec.pi_payment_id || rec.id;
+                if (!map.has(key)) map.set(key, rec);
+              }
+            });
+            const merged = Array.from(map.values()).sort(
+              (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+            );
+            savePaymentHistoryToStorage(merged);
+            return merged;
+          });
+        }
       }
     } catch {
-      // ignore history fetch error
+      // Local storage history remains preserved
     }
   }, [profile.piUid]);
 
@@ -1154,25 +1241,27 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 
   // Authenticate Pi Network Account
-  const connectPiAccount = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
+  const connectPiAccount = useCallback(async (isManual: boolean = false): Promise<{ success: boolean; error?: string }> => {
     setPiAuthError(null);
 
     if (!piNetwork.isPiBrowser()) {
       const err = 'Authentication requires opening HamsterPi in the official Pi Browser mobile app.';
       setPiAuthError(err);
-      sounds.playError();
+      if (isManual) sounds.playError();
       return { success: false, error: err };
     }
 
     try {
       const res = await piNetwork.authenticate();
       if (res && res.verified && res.user) {
-        sounds.playFanfare();
-        confetti({
-          particleCount: 80,
-          spread: 70,
-          origin: { y: 0.5 },
-        });
+        if (isManual) {
+          sounds.playFanfare();
+          confetti({
+            particleCount: 80,
+            spread: 70,
+            origin: { y: 0.5 },
+          });
+        }
 
         const updatedProfile: PlayerProfile = {
           ...profile,
@@ -1200,7 +1289,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const message = (err as Error)?.message || 'Pi Authentication failed';
       console.warn('[Pi Auth] Failed:', message);
       setPiAuthError(message);
-      sounds.playError();
+      if (isManual) sounds.playError();
       return { success: false, error: message };
     }
   }, [profile, refreshPaymentHistory]);
@@ -1223,14 +1312,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setPaymentHistory([]);
   }, [profile]);
 
-  // Initialize Pi SDK on mount & auto-connect inside Pi Browser
+  // Initialize Pi SDK on mount & auto-connect inside Pi Browser (silent on launch)
   useEffect(() => {
     setIsPiBrowser(piNetwork.isPiBrowser());
     piNetwork.init().then((ready) => {
       setIsPiSdkReady(ready);
       if (ready) {
         if (piNetwork.isPiBrowser()) {
-          connectPiAccount().catch((err) => {
+          connectPiAccount(false).catch((err) => {
             console.info('[Pi SDK Auto-Auth] Prompting login inside Pi Browser:', err);
           });
         }
@@ -1290,6 +1379,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               spread: 80,
               origin: { y: 0.5 },
             });
+
+            // 1. Immediately create and persist the transaction record to localStorage
+            const paymentId = result.paymentId || ('pay_' + Date.now());
+            const txid = result.txid || ('tx_' + Math.random().toString(36).substring(2, 10));
+            const newTxRecord: PaymentTransactionRecord = {
+              id: 'tx_rec_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+              pi_payment_id: paymentId,
+              amount: product.pricePi,
+              memo: `HamsterPi: ${product.name}`,
+              product_id: product.id,
+              status: 'COMPLETED',
+              server_txid: txid,
+              created_at: new Date().toISOString(),
+            };
+
+            setPaymentHistory((prev) => {
+              const filtered = prev.filter(
+                (item) => item.pi_payment_id !== paymentId && (!txid || item.server_txid !== txid)
+              );
+              const updated = [newTxRecord, ...filtered];
+              savePaymentHistoryToStorage(updated);
+              return updated;
+            });
+
+            // Notify server endpoint as well
+            fetch('/api/pi/payments/history', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                piUserUid: profile.piUid || '',
+                record: newTxRecord,
+              }),
+            }).catch(() => {});
 
             // Apply product rewards immediately
             const p = product.rewardPayload;
@@ -1354,7 +1476,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       });
     },
-    [profile.isPiConnected, refreshPaymentHistory]
+    [profile.isPiConnected, profile.piUid, refreshPaymentHistory]
   );
 
   // Copy Referral Link
@@ -1372,14 +1494,34 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [profile.referralCode]);
 
   const dismissOfflineEarnings = () => {
-    if (offlineEarnings) {
+    if (offlineEarnings && isFinite(offlineEarnings.points) && offlineEarnings.points > 0) {
+      const addedPoints = offlineEarnings.points;
       sounds.playCoin();
       confetti({ particleCount: 50, spread: 60, origin: { y: 0.5 } });
+
+      const newPoints = balance.points + addedPoints;
+      const newLifetime = balance.lifetimePoints + addedPoints;
+
       setBalance((prev) => ({
         ...prev,
-        points: prev.points + offlineEarnings.points,
-        lifetimePoints: prev.lifetimePoints + offlineEarnings.points,
+        points: isFinite(prev.points) ? prev.points + addedPoints : addedPoints,
+        lifetimePoints: isFinite(prev.lifetimePoints) ? prev.lifetimePoints + addedPoints : addedPoints,
       }));
+      setOfflineEarnings(null);
+
+      // Immediately write to storage so refresh will never re-award
+      const current = loadSavedGameData() || {};
+      saveGameDataImmediate({
+        ...current,
+        ...latestStateRef.current,
+        balance: {
+          ...balance,
+          points: newPoints,
+          lifetimePoints: newLifetime,
+        },
+        lastSavedAt: Date.now(),
+      });
+    } else {
       setOfflineEarnings(null);
     }
   };

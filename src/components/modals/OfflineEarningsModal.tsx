@@ -36,7 +36,7 @@ export const OfflineEarningsModal: React.FC = () => {
         {/* Big Points Reveal */}
         <div className="my-4 p-4 rounded-2xl bg-slate-950/70 border border-amber-500/40">
           <div className="text-3xl font-mono font-black text-amber-400 tracking-tight">
-            +{offlineEarnings.points.toLocaleString()} π
+            +{isFinite(offlineEarnings.points) ? Math.floor(offlineEarnings.points).toLocaleString() : '0'} π
           </div>
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-1 font-medium">
             <Clock className="w-3.5 h-3.5 text-purple-400" />

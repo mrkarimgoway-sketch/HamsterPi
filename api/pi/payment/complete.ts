@@ -78,6 +78,35 @@ export default async function handler(req: any, res: any) {
     }
 
     const completedData = await completeResponse.json();
+
+    // Optionally record to Supabase if configured
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || '';
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || '';
+    if (supabaseUrl && serviceRoleKey && !supabaseUrl.includes('your-project')) {
+      try {
+        const { createClient } = await import('@supabase/supabase-js');
+        const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false } });
+        await supabase.from('payment_records').upsert(
+          {
+            pi_payment_id: paymentId,
+            pi_user_uid: completedData?.user_uid || '',
+            amount: completedData?.amount || 0,
+            memo: completedData?.memo || 'Pi Store Purchase',
+            product_id: productId,
+            status: 'COMPLETED',
+            developer_approved: true,
+            developer_completed: true,
+            transaction_verified: true,
+            server_txid: txid,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'pi_payment_id' }
+        );
+      } catch (dbErr) {
+        console.warn('[Pi Payments Serverless] Optional Supabase record skipped:', dbErr);
+      }
+    }
+
     return res.status(200).json({
       status: 'COMPLETED',
       paymentId,

@@ -258,7 +258,7 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
                         </button>
                       ) : (
                         <button
-                          onClick={connectPiAccount}
+                          onClick={() => connectPiAccount(true)}
                           className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-purple-800/60 text-purple-300 font-bold text-xs flex items-center gap-1"
                         >
                           <Shield className="w-3.5 h-3.5" />
