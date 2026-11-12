@@ -333,8 +333,9 @@ export const MissionsScreen: React.FC = () => {
                     </span>
                   ) : mission.isCompleted ? (
                     <button
+                      type="button"
                       onClick={() => claimMissionReward(mission.id)}
-                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all"
+                      className="px-3.5 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs shadow-md shadow-amber-500/30 hover:brightness-110 active:scale-95 transition-all outline-none focus:outline-none focus:ring-0 active:outline-none select-none"
                     >
                       {t.missions.claim}
                     </button>

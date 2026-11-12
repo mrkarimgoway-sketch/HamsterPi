@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import confetti from 'canvas-confetti';
+import confetti from '../utils/confetti';
 import {
   Achievement,
   EnergyState,

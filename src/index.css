@@ -51,6 +51,10 @@
     -webkit-tap-highlight-color: transparent !important;
   }
 
+  canvas {
+    background-color: transparent !important;
+  }
+
   input, textarea {
     user-select: text !important;
     -webkit-user-select: text !important;
