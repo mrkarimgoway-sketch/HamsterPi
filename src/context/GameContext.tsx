@@ -22,7 +22,7 @@ import {
   INITIAL_MISSIONS,
   INITIAL_UPGRADES,
 } from '../data/initialData';
-import { PiProduct } from '../data/piProducts';
+import { PI_PRODUCTS, PiProduct } from '../data/piProducts';
 import { sounds } from '../services/sound';
 import { piNetwork, PaymentCompletionResult } from '../services/piNetwork';
 import { dbService } from '../services/supabaseClient';
@@ -67,6 +67,10 @@ interface GameContextType {
 
   activeSkin: HamsterSkin;
   setSkin: (skin: HamsterSkin) => void;
+  equippedFrame: string;
+  unlockedFrames: string[];
+  purchasedOneTimeIds: string[];
+  equipFrame: (frameId: string) => void;
 
   handleHamsterTap: (event: React.MouseEvent | React.TouchEvent) => void;
   buyUpgrade: (upgradeId: string) => boolean;
@@ -223,6 +227,39 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<PlayerProfile>(() => {
     const saved = loadSavedGameData();
     const cachedUser = piNetwork.getCurrentUser();
+    const savedTx = loadSavedPaymentHistory();
+
+    // Hydrate any completed one-time purchases from saved payment history
+    const completedProductIds = new Set<string>(
+      savedTx
+        .filter((tx) => tx && tx.status === 'COMPLETED' && tx.product_id)
+        .map((tx) => tx.product_id!)
+    );
+
+    const savedOneTimeIds = Array.isArray(saved?.profile?.purchasedOneTimeIds)
+      ? saved!.profile!.purchasedOneTimeIds!
+      : [];
+    const mergedOneTimeSet = new Set<string>(savedOneTimeIds);
+    PI_PRODUCTS.forEach((prod) => {
+      if (prod.oneTimeOnly && completedProductIds.has(prod.id)) {
+        mergedOneTimeSet.add(prod.id);
+      }
+    });
+
+    const savedFrames = Array.isArray(saved?.profile?.unlockedFrames)
+      ? saved!.profile!.unlockedFrames!
+      : ['none'];
+    const mergedFrameSet = new Set<string>(['none', ...savedFrames]);
+    PI_PRODUCTS.forEach((prod) => {
+      if (prod.rewardPayload.frameId && mergedOneTimeSet.has(prod.id)) {
+        mergedFrameSet.add(prod.rewardPayload.frameId);
+      }
+    });
+
+    const equippedFrame =
+      saved?.profile?.equippedFrame && mergedFrameSet.has(saved.profile.equippedFrame)
+        ? saved.profile.equippedFrame
+        : 'none';
 
     if (saved?.profile) {
       const skin = (saved.profile.currentSkin && HAMSTER_SKINS[saved.profile.currentSkin as HamsterSkin])
@@ -237,6 +274,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         displayName: cachedUser?.username || saved.profile.displayName || verifiedUsername,
         avatarUrl: validImg,
         currentSkin: skin,
+        equippedFrame,
+        unlockedFrames: Array.from(mergedFrameSet),
+        purchasedOneTimeIds: Array.from(mergedOneTimeSet),
         role: saved.profile.role || 'pioneer',
         referralCode: saved.profile.referralCode || ('PIHAMSTER' + Math.floor(1000 + Math.random() * 9000)),
         isPiConnected: Boolean(cachedUser) || Boolean(saved.profile.isPiConnected),
@@ -250,6 +290,9 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       displayName: cachedUser ? cachedUser.username : 'Pioneer Guest',
       avatarUrl: HAMSTER_SKINS.default.image,
       currentSkin: 'default',
+      equippedFrame,
+      unlockedFrames: Array.from(mergedFrameSet),
+      purchasedOneTimeIds: Array.from(mergedOneTimeSet),
       role: 'pioneer',
       referralCode: 'PIHAMSTER' + Math.floor(1000 + Math.random() * 9000),
       isPiConnected: Boolean(cachedUser),
@@ -1339,6 +1382,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return;
         }
 
+        // Strict one-time purchase guard
+        const ownedIds = profile.purchasedOneTimeIds || [];
+        if (product.oneTimeOnly && ownedIds.includes(product.id)) {
+          const err = 'This exclusive item can only be purchased once and is already owned.';
+          setPaymentStatus({ isProcessing: false, step: 'error', error: err });
+          sounds.playError();
+          resolve({ success: false, error: err });
+          return;
+        }
+
         setPaymentStatus({
           isProcessing: true,
           step: 'approving',
@@ -1413,31 +1466,90 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }),
             }).catch(() => {});
 
-            // Apply product rewards immediately
+            // 2. Apply product rewards immediately (points, seeds, skin, frames, permanent perks, energy)
             const p = product.rewardPayload;
-            if (p.points) {
+            if (p.points || p.seeds) {
               setBalance((prev) => ({
                 ...prev,
-                points: prev.points + p.points!,
-                lifetimePoints: prev.lifetimePoints + p.points!,
+                points: prev.points + (p.points || 0),
+                lifetimePoints: prev.lifetimePoints + (p.points || 0),
+                goldenSeeds: prev.goldenSeeds + (p.seeds || 0),
               }));
             }
-            if (p.seeds) {
-              setBalance((prev) => ({
-                ...prev,
-                goldenSeeds: prev.goldenSeeds + p.seeds!,
-              }));
+
+            if (p.skin || p.frameId || product.oneTimeOnly) {
+              setProfile((prev) => {
+                const nextPurchased = product.oneTimeOnly
+                  ? Array.from(new Set([...(prev.purchasedOneTimeIds || []), product.id]))
+                  : prev.purchasedOneTimeIds || [];
+                const nextFrames = p.frameId
+                  ? Array.from(new Set(['none', ...(prev.unlockedFrames || []), p.frameId]))
+                  : prev.unlockedFrames || ['none'];
+                const nextEquippedFrame = p.frameId ? p.frameId : prev.equippedFrame || 'none';
+                const nextSkin = p.skin ? p.skin : prev.currentSkin;
+
+                const updatedProfile: PlayerProfile = {
+                  ...prev,
+                  currentSkin: nextSkin,
+                  avatarUrl: HAMSTER_SKINS[nextSkin]?.image || prev.avatarUrl,
+                  equippedFrame: nextEquippedFrame,
+                  unlockedFrames: nextFrames,
+                  purchasedOneTimeIds: nextPurchased,
+                };
+                try {
+                  saveGameDataImmediate({
+                    ...latestStateRef.current,
+                    profile: updatedProfile,
+                    lastSavedAt: Date.now(),
+                  });
+                } catch {}
+                return updatedProfile;
+              });
             }
-            if (p.skin) {
-              setProfile((prev) => ({ ...prev, currentSkin: p.skin! }));
+
+            if (
+              (p.multiplier && p.durationHours) ||
+              p.tapBonus ||
+              p.passiveBonus ||
+              p.passivePerHourBonus
+            ) {
+              setStats((prev) => {
+                let nextPerHour = prev.passiveRatePerHour;
+                if (p.passiveBonus) {
+                  nextPerHour = Math.round(nextPerHour * (1 + p.passiveBonus) + 500 * p.passiveBonus);
+                }
+                if (p.passivePerHourBonus) {
+                  nextPerHour += p.passivePerHourBonus;
+                }
+                return {
+                  ...prev,
+                  tapPower: prev.tapPower + (p.tapBonus || 0),
+                  passiveRatePerHour: nextPerHour,
+                  passiveRatePerSec: nextPerHour / 3600,
+                  activeBoosterMultiplier:
+                    p.multiplier && p.durationHours ? p.multiplier : prev.activeBoosterMultiplier,
+                  activeBoosterExpiresAt:
+                    p.multiplier && p.durationHours
+                      ? Date.now() + p.durationHours * 3600 * 1000
+                      : prev.activeBoosterExpiresAt,
+                };
+              });
             }
-            if (p.multiplier && p.durationHours) {
-              setStats((prev) => ({
-                ...prev,
-                activeBoosterMultiplier: p.multiplier,
-                activeBoosterExpiresAt: Date.now() + p.durationHours! * 3600 * 1000,
-              }));
+
+            if (p.maxEnergyBonus || p.energyRefill) {
+              setEnergy((prev) => {
+                const nextMax = prev.max + (p.maxEnergyBonus || 0);
+                return {
+                  ...prev,
+                  max: nextMax,
+                  current: p.energyRefill ? nextMax : Math.min(nextMax, prev.current + (p.maxEnergyBonus || 0)),
+                };
+              });
             }
+
+            setTimeout(() => {
+              saveGameStateNow();
+            }, 80);
 
             setPaymentStatus({
               isProcessing: false,
@@ -1476,7 +1588,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       });
     },
-    [profile.isPiConnected, profile.piUid, refreshPaymentHistory]
+    [profile.isPiConnected, profile.piUid, profile.purchasedOneTimeIds, refreshPaymentHistory, saveGameStateNow]
   );
 
   // Copy Referral Link
@@ -1527,7 +1639,29 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const setSkin = (skin: HamsterSkin) => {
-    setProfile((prev) => ({ ...prev, currentSkin: skin }));
+    setProfile((prev) => {
+      const next = { ...prev, currentSkin: skin, avatarUrl: HAMSTER_SKINS[skin]?.image || prev.avatarUrl };
+      try {
+        saveGameDataImmediate({ ...latestStateRef.current, profile: next, lastSavedAt: Date.now() });
+      } catch {}
+      return next;
+    });
+    sounds.playTap();
+  };
+
+  const equipFrame = (frameId: string) => {
+    const allowed = profile.unlockedFrames || ['none'];
+    if (frameId !== 'none' && !allowed.includes(frameId)) {
+      sounds.playError();
+      return;
+    }
+    setProfile((prev) => {
+      const next = { ...prev, equippedFrame: frameId };
+      try {
+        saveGameDataImmediate({ ...latestStateRef.current, profile: next, lastSavedAt: Date.now() });
+      } catch {}
+      return next;
+    });
     sounds.playTap();
   };
 
@@ -1556,6 +1690,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         floatingTexts,
         activeSkin: profile.currentSkin,
         setSkin,
+        equippedFrame: profile.equippedFrame || 'none',
+        unlockedFrames: profile.unlockedFrames || ['none'],
+        purchasedOneTimeIds: profile.purchasedOneTimeIds || [],
+        equipFrame,
         handleHamsterTap,
         buyUpgrade,
         claimMissionReward,

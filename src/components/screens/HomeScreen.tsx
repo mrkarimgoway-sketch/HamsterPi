@@ -3,6 +3,7 @@ import { Zap, Sparkles, Trophy, ChevronRight, Gift, Flame, CheckCircle2 } from '
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { HAMSTER_SKINS } from '../../data/initialData';
+import { getAvatarFrameConfig } from '../../data/piProducts';
 import { TabType } from '../Navigation';
 
 interface HomeScreenProps {
@@ -25,12 +26,14 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     floatingTexts,
     handleHamsterTap,
     activeSkin,
+    equippedFrame,
     adminSettings,
     isDailyRewardClaimable,
   } = useGame();
 
   const t = translations[language];
   const skin = HAMSTER_SKINS[activeSkin] || HAMSTER_SKINS.default;
+  const frameConfig = getAvatarFrameConfig(equippedFrame);
 
   const [isTapped, setIsTapped] = useState(false);
   const [combo, setCombo] = useState(0);
@@ -195,7 +198,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="absolute w-64 h-64 rounded-full bg-gradient-to-tr from-amber-500/15 via-purple-600/15 to-transparent blur-3xl pointer-events-none animate-aura" />
 
         {/* Outer Circular Aura Border */}
-        <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-full p-2 bg-gradient-to-b from-amber-500/40 via-purple-600/30 to-amber-500/10 shadow-2xl flex items-center justify-center select-none">
+        <div className={`relative w-64 h-64 sm:w-72 sm:h-72 rounded-full p-2 bg-gradient-to-b ${frameConfig.auraClass} shadow-2xl flex items-center justify-center select-none`}>
           {/* Inner Clickable Hamster Disc */}
           <button
             type="button"
@@ -211,7 +214,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               userSelect: 'none',
               WebkitUserSelect: 'none',
             }}
-            className={`group relative w-full h-full rounded-full overflow-hidden border-4 border-amber-400/50 shadow-inner outline-none focus:outline-none focus:ring-0 active:outline-none transition-transform duration-75 select-none ${
+            className={`group relative w-full h-full rounded-full overflow-hidden ${frameConfig.discBorderClass} shadow-inner outline-none focus:outline-none focus:ring-0 active:outline-none transition-transform duration-75 select-none ${
               isTapped ? 'scale-90 rotate-1' : 'hover:scale-[1.02]'
             } ${energy.current <= 0 ? 'opacity-60 grayscale cursor-not-allowed' : 'cursor-pointer active:scale-90'}`}
           >

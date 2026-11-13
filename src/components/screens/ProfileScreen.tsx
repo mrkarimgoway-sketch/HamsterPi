@@ -22,6 +22,7 @@ import {
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
 import { HAMSTER_SKINS } from '../../data/initialData';
+import { AVATAR_FRAMES, AvatarFrameId, getAvatarFrameConfig } from '../../data/piProducts';
 import { HamsterSkin } from '../../types/game';
 
 interface ProfileScreenProps {
@@ -38,6 +39,10 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
     achievements,
     activeSkin,
     setSkin,
+    equippedFrame,
+    unlockedFrames,
+    purchasedOneTimeIds,
+    equipFrame,
     isPiConnected,
     isPiBrowser,
     piAuthError,
@@ -46,6 +51,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
     updatePioneerUsername,
     upgrades,
   } = useGame();
+  const activeFrameConfig = getAvatarFrameConfig(equippedFrame);
 
   const t = translations[language];
   const [copiedLink, setCopiedLink] = useState(false);
@@ -88,8 +94,14 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const hasKingSkin = (upgrades.find((u) => u.id === 'royal_crown')?.currentLevel || 0) >= 1;
-  const hasCyberSkin = (upgrades.find((u) => u.id === 'cyber_visor')?.currentLevel || 0) >= 1;
+  const hasKingSkin =
+    (upgrades.find((u) => u.id === 'royal_crown')?.currentLevel || 0) >= 1 ||
+    purchasedOneTimeIds.includes('pi_pack_king_skin') ||
+    activeSkin === 'king';
+  const hasCyberSkin =
+    (upgrades.find((u) => u.id === 'cyber_visor')?.currentLevel || 0) >= 1 ||
+    purchasedOneTimeIds.includes('pi_pack_cyber_skin') ||
+    activeSkin === 'cyber';
 
   const skinUnlocked: Record<HamsterSkin, boolean> = {
     default: true,
@@ -128,7 +140,7 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
                   target.src = '/images/hamster_mascot_default_1793717666154.jpg';
                 }
               }}
-              className="w-16 h-16 rounded-full border-2 border-amber-500/80 object-cover shadow-lg shadow-amber-500/20"
+              className={`w-16 h-16 rounded-full object-cover ${activeFrameConfig.ringClass}`}
             />
             {isPiConnected && (
               <span
@@ -355,6 +367,63 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ onOpenAdmin, onOpe
                     <span>Locked</span>
                   )}
                 </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Avatar Frames Selector */}
+      <div className="mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+            {t.piStore.framesTitle}
+          </h3>
+          <button
+            onClick={onOpenPiStore}
+            className="text-[11px] font-bold text-purple-300 hover:text-amber-300 transition-colors"
+          >
+            π Shop →
+          </button>
+        </div>
+
+        <div className="grid grid-cols-5 gap-2">
+          {(Object.keys(AVATAR_FRAMES) as AvatarFrameId[]).map((fKey) => {
+            const frame = AVATAR_FRAMES[fKey];
+            const isUnlocked = fKey === 'none' || unlockedFrames.includes(fKey);
+            const isEquipped = equippedFrame === fKey;
+
+            return (
+              <button
+                key={fKey}
+                onClick={() => {
+                  if (isUnlocked) equipFrame(fKey);
+                  else onOpenPiStore();
+                }}
+                title={language === 'ar' ? frame.nameAr : frame.name}
+                className={`relative rounded-xl p-2 flex flex-col items-center border transition-all ${
+                  isEquipped
+                    ? 'glass-panel-gold border-amber-400'
+                    : isUnlocked
+                    ? 'glass-panel border-slate-800 hover:border-slate-700'
+                    : 'bg-slate-950/70 border-slate-900 opacity-55 hover:opacity-80'
+                }`}
+              >
+                <div className="relative w-9 h-9 rounded-full flex items-center justify-center">
+                  <img
+                    src={HAMSTER_SKINS[activeSkin]?.image || '/images/hamster_mascot_default_1793717666154.jpg'}
+                    alt={frame.name}
+                    className={`w-8 h-8 rounded-full object-cover ${frame.ringClass}`}
+                  />
+                  {!isUnlocked && (
+                    <div className="absolute inset-0 rounded-full bg-slate-950/70 flex items-center justify-center text-[10px]">
+                      🔒
+                    </div>
+                  )}
+                </div>
+                <span className="text-[9px] font-bold text-slate-300 truncate w-full text-center mt-1">
+                  {language === 'ar' ? frame.nameAr.split(' ')[0] : frame.name.split(' ')[0]}
+                </span>
               </button>
             );
           })}

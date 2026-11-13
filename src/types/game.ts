@@ -16,6 +16,9 @@ export interface PlayerProfile {
   displayName: string;
   avatarUrl: string;
   currentSkin: HamsterSkin;
+  equippedFrame?: string;
+  unlockedFrames?: string[];
+  purchasedOneTimeIds?: string[];
   role: 'pioneer' | 'admin';
   referralCode: string;
   referredBy?: string;

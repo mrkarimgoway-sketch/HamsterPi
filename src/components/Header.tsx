@@ -3,6 +3,7 @@ import { Volume2, VolumeX, Shield, Sparkles, Settings as SettingsIcon, ShoppingB
 import { useGame } from '../context/GameContext';
 import { translations } from '../services/i18n';
 import { HAMSTER_SKINS } from '../data/initialData';
+import { getAvatarFrameConfig } from '../data/piProducts';
 
 interface HeaderProps {
   onOpenSettings: () => void;
@@ -19,9 +20,10 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPiStore,
   onOpenProfile,
 }) => {
-  const { language, profile, balance, stats, isMuted, toggleSound } = useGame();
+  const { language, profile, balance, stats, isMuted, toggleSound, equippedFrame } = useGame();
   const t = translations[language];
   const skinInfo = HAMSTER_SKINS[profile.currentSkin] || HAMSTER_SKINS.default;
+  const frameConfig = getAvatarFrameConfig(equippedFrame);
 
   const formattedPoints = Math.floor(balance.points).toLocaleString();
   const formattedPerHour = stats.passiveRatePerHour.toLocaleString();
@@ -46,8 +48,13 @@ export const Header: React.FC<HeaderProps> = ({
                   target.src = '/images/hamster_mascot_default_1793717666154.jpg';
                 }
               }}
-              className="w-10 h-10 rounded-full border-2 border-amber-500/60 object-cover shadow-sm shadow-amber-500/20 group-hover:border-amber-400 transition-colors"
+              className={`w-10 h-10 rounded-full object-cover transition-all ${frameConfig.ringClass}`}
             />
+            {frameConfig.badgeText && !profile.isPiConnected && (
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-950 rounded-full border border-slate-700 flex items-center justify-center text-[8px]">
+                {frameConfig.badgeText}
+              </span>
+            )}
             {profile.isPiConnected && (
               <span
                 title="Verified Pi Pioneer"
