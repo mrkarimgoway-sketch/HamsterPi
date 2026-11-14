@@ -179,8 +179,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <Zap className="w-4 h-4 fill-amber-400" />
             <span>{stats.activeBoosterMultiplier}x Hyper Booster Active!</span>
           </div>
-          <span className="text-[10px] font-mono text-purple-200 pointer-events-none">
-            {Math.max(1, Math.round((stats.activeBoosterExpiresAt - Date.now()) / (1000 * 60)))}m left
+          <span className="text-[10px] font-mono text-purple-200 pointer-events-none tabular-nums">
+            {(() => {
+              const totalMins = Math.max(1, Math.round((stats.activeBoosterExpiresAt - Date.now()) / (1000 * 60)));
+              const hrs = Math.floor(totalMins / 60);
+              const mins = totalMins % 60;
+              return hrs > 0 ? `${hrs}h ${mins}m left` : `${mins}m left`;
+            })()}
           </span>
         </div>
       )}

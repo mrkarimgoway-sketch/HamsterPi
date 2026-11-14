@@ -126,6 +126,27 @@ export interface Mission {
   isClaimed: boolean;
 }
 
+export type SocialPlatform =
+  | 'telegram'
+  | 'youtube'
+  | 'x'
+  | 'facebook'
+  | 'instagram'
+  | 'tiktok';
+
+export interface SocialTask {
+  id: string;
+  platform: SocialPlatform;
+  url: string;
+  title: string;
+  titleAr: string;
+  description: string;
+  descriptionAr: string;
+  actionLabel: string;
+  actionLabelAr: string;
+  boostHours: number;
+}
+
 export interface Achievement {
   id: string;
   title: string;

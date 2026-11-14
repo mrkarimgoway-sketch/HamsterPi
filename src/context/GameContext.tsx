@@ -23,6 +23,7 @@ import {
   INITIAL_UPGRADES,
 } from '../data/initialData';
 import { PI_PRODUCTS, PiProduct } from '../data/piProducts';
+import { SOCIAL_TASKS, SOCIAL_TASK_COOLDOWN_MS } from '../data/socialTasks';
 import { sounds } from '../services/sound';
 import { piNetwork, PaymentCompletionResult } from '../services/piNetwork';
 import { dbService } from '../services/supabaseClient';
@@ -75,6 +76,8 @@ interface GameContextType {
   handleHamsterTap: (event: React.MouseEvent | React.TouchEvent) => void;
   buyUpgrade: (upgradeId: string) => boolean;
   claimMissionReward: (missionId: string) => void;
+  socialTaskCompletions: Record<string, number>;
+  completeSocialTask: (taskId: string) => { success: boolean; boostHoursAdded: number; newMultiplier: number };
   isDailyRewardClaimable: boolean;
   claimDailyLogin: () => boolean;
   submitMiniGameResult: (gameKey: string, score: number, rewardPoints: number) => void;
@@ -167,6 +170,7 @@ interface SavedGameData {
   energy?: EnergyState;
   upgrades?: UpgradeItem[];
   missions?: Mission[];
+  socialTaskCompletions?: Record<string, number>;
   achievements?: Achievement[];
   adminSettings?: AdminSettings;
   lastSavedAt?: number;
@@ -435,6 +439,14 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return INITIAL_MISSIONS;
   });
 
+  const [socialTaskCompletions, setSocialTaskCompletions] = useState<Record<string, number>>(() => {
+    const saved = loadSavedGameData();
+    if (saved?.socialTaskCompletions && typeof saved.socialTaskCompletions === 'object') {
+      return saved.socialTaskCompletions;
+    }
+    return {};
+  });
+
   const [achievements, setAchievements] = useState<Achievement[]>(() => {
     const saved = loadSavedGameData();
     if (saved?.achievements && Array.isArray(saved.achievements)) {
@@ -477,6 +489,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     energy,
     upgrades,
     missions,
+    socialTaskCompletions,
     achievements,
     adminSettings,
   });
@@ -490,6 +503,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
       energy,
       upgrades,
       missions,
+      socialTaskCompletions,
       achievements,
       adminSettings,
     };
@@ -1102,6 +1116,73 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     [missions, balance.points, profile.id, saveGameStateNow]
   );
 
+  // Complete Social Task (24h refresh, cumulative +1h production boost)
+  const completeSocialTask = useCallback(
+    (taskId: string): { success: boolean; boostHoursAdded: number; newMultiplier: number } => {
+      const task = SOCIAL_TASKS.find((item) => item.id === taskId);
+      if (!task) {
+        return { success: false, boostHoursAdded: 0, newMultiplier: stats.activeBoosterMultiplier || 1 };
+      }
+
+      const now = Date.now();
+      const prevCompletedAt = socialTaskCompletions[taskId] || 0;
+      if (prevCompletedAt > 0 && now - prevCompletedAt < SOCIAL_TASK_COOLDOWN_MS) {
+        return { success: false, boostHoursAdded: 0, newMultiplier: stats.activeBoosterMultiplier || 1 };
+      }
+
+      const nextCompletions = {
+        ...socialTaskCompletions,
+        [taskId]: now,
+      };
+
+      const activeSocialCount = SOCIAL_TASKS.filter((item) => {
+        const ts = nextCompletions[item.id];
+        return Boolean(ts && now - ts < SOCIAL_TASK_COOLDOWN_MS);
+      }).length;
+
+      // Cumulative multiplier: 1 task = 2.0x, 2 = 2.2x, ..., all 6 = 3.0x
+      const socialMultiplier = Number((1.8 + activeSocialCount * 0.2).toFixed(1));
+      const hasLiveBooster = Boolean(stats.activeBoosterExpiresAt && stats.activeBoosterExpiresAt > now);
+      const nextMultiplier = hasLiveBooster
+        ? Math.max(stats.activeBoosterMultiplier || 1.0, socialMultiplier)
+        : socialMultiplier;
+      const nextExpiresAt = Math.max(now, stats.activeBoosterExpiresAt || 0) + task.boostHours * 3600 * 1000;
+
+      sounds.playFanfare();
+      confetti({
+        particleCount: 60,
+        spread: 65,
+        origin: { y: 0.6 },
+      });
+
+      setSocialTaskCompletions(nextCompletions);
+      const nextStats: PlayerStats = {
+        ...stats,
+        activeBoosterMultiplier: nextMultiplier,
+        activeBoosterExpiresAt: nextExpiresAt,
+      };
+      setStats(nextStats);
+
+      try {
+        saveGameDataImmediate({
+          ...latestStateRef.current,
+          socialTaskCompletions: nextCompletions,
+          stats: nextStats,
+          lastDailyResetDate: getTodayLocalDateString(),
+          lastWeeklyResetDate: getCurrentWeekString(),
+          lastSavedAt: now,
+        });
+      } catch {}
+
+      return {
+        success: true,
+        boostHoursAdded: task.boostHours,
+        newMultiplier: nextMultiplier,
+      };
+    },
+    [socialTaskCompletions, stats]
+  );
+
   // Daily login claim eligibility (strictly once per calendar day)
   const isDailyRewardClaimable = stats.lastDailyClaimDate !== getTodayLocalDateString();
 
@@ -1697,6 +1778,8 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         handleHamsterTap,
         buyUpgrade,
         claimMissionReward,
+        socialTaskCompletions,
+        completeSocialTask,
         isDailyRewardClaimable,
         claimDailyLogin,
         submitMiniGameResult,
