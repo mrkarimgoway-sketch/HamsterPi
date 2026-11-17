@@ -27,6 +27,7 @@ import { SOCIAL_TASKS, SOCIAL_TASK_COOLDOWN_MS } from '../data/socialTasks';
 import { sounds } from '../services/sound';
 import { piNetwork, PaymentCompletionResult } from '../services/piNetwork';
 import { dbService } from '../services/supabaseClient';
+import { isValidLanguage, translations } from '../services/i18n';
 
 interface OfflineEarnings {
   points: number;
@@ -201,8 +202,10 @@ const saveGameDataImmediate = (data: SavedGameData): void => {
 
 export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
-    return (localStorage.getItem('hamsterpi_lang') as Language) || 'en';
+    const saved = localStorage.getItem('hamsterpi_lang');
+    return isValidLanguage(saved) ? saved : 'en';
   });
+  const languageRef = useRef<Language>(language);
 
   const [isMuted, setIsMuted] = useState<boolean>(() => sounds.isMuted);
   const [hapticEnabled, setHapticEnabled] = useState<boolean>(() => {
@@ -650,6 +653,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Sync to HTML dir and lang
   useEffect(() => {
+    languageRef.current = language;
     document.documentElement.lang = language;
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
     localStorage.setItem('hamsterpi_lang', language);
@@ -1326,7 +1330,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const watchRewardedAd = useCallback(async (): Promise<{ success: boolean; error?: string }> => {
     return {
       success: false,
-      error: 'The Pi Ad Network integration is currently in review by the Pi Core Team. Video rewards will activate upon approval.',
+      error: translations[languageRef.current].systemMessages.adInReview,
     };
   }, []);
 
@@ -1368,8 +1372,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const connectPiAccount = useCallback(async (isManual: boolean = false): Promise<{ success: boolean; error?: string }> => {
     setPiAuthError(null);
 
+    const sysMsgs = translations[languageRef.current].systemMessages;
+
     if (!piNetwork.isPiBrowser()) {
-      const err = 'Authentication requires opening HamsterPi in the official Pi Browser mobile app.';
+      const err = sysMsgs.authRequiresPiBrowser;
       setPiAuthError(err);
       if (isManual) sounds.playError();
       return { success: false, error: err };
@@ -1406,11 +1412,11 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         refreshPaymentHistory();
         return { success: true };
       }
-      const err = res.error || 'Pi authentication could not be completed.';
+      const err = res.error || sysMsgs.authIncomplete;
       setPiAuthError(err);
       return { success: false, error: err };
     } catch (err: unknown) {
-      const message = (err as Error)?.message || 'Pi Authentication failed';
+      const message = (err as Error)?.message || sysMsgs.authFailed;
       console.warn('[Pi Auth] Failed:', message);
       setPiAuthError(message);
       if (isManual) sounds.playError();
@@ -1455,8 +1461,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const purchasePiProduct = useCallback(
     (product: PiProduct): Promise<{ success: boolean; error?: string; txid?: string }> => {
       return new Promise((resolve) => {
+        const sysMsgs = translations[languageRef.current].systemMessages;
+
         if (!profile.isPiConnected) {
-          const err = 'Please authenticate with your Pi account before making a purchase.';
+          const err = sysMsgs.loginBeforePurchase;
           setPaymentStatus({ isProcessing: false, step: 'error', error: err });
           sounds.playError();
           resolve({ success: false, error: err });
@@ -1466,7 +1474,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Strict one-time purchase guard
         const ownedIds = profile.purchasedOneTimeIds || [];
         if (product.oneTimeOnly && ownedIds.includes(product.id)) {
-          const err = 'This exclusive item can only be purchased once and is already owned.';
+          const err = sysMsgs.alreadyOwnedExclusive;
           setPaymentStatus({ isProcessing: false, step: 'error', error: err });
           sounds.playError();
           resolve({ success: false, error: err });
@@ -1476,16 +1484,17 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setPaymentStatus({
           isProcessing: true,
           step: 'approving',
-          message: 'Initializing payment with Pi Network...',
+          message: sysMsgs.initializingPayment,
         });
 
         // Watchdog timer: If Pi SDK or network stalls, reset loading after 25s
         const watchdogTimer = setTimeout(() => {
+          const latestMsgs = translations[languageRef.current].systemMessages;
           setPaymentStatus({
             isProcessing: false,
             step: 'error',
-            error: 'Payment request timed out. Please check your Pi Network connection and ensure PI_API_KEY is configured in your project settings.',
-            message: 'Payment request timed out.',
+            error: latestMsgs.paymentTimedOut,
+            message: latestMsgs.paymentTimedOut,
           });
           sounds.playError();
           resolve({ success: false, error: 'TIMEOUT' });
@@ -1493,15 +1502,16 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         piNetwork.createPayment(product, {
           onProgress: (step) => {
+            const latestMsgs = translations[languageRef.current].systemMessages;
             setPaymentStatus((prev) => ({
               ...prev,
               step,
               message:
                 step === 'approving'
-                  ? 'Requesting server payment approval...'
+                  ? latestMsgs.approvingServer
                   : step === 'awaiting_signature'
-                  ? 'Awaiting transaction signature in your Pi Wallet...'
-                  : 'Verifying on-chain transaction & finalizing rewards...',
+                  ? latestMsgs.awaitingWalletSig
+                  : latestMsgs.verifyingOnChain,
             }));
           },
 
@@ -1636,7 +1646,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
               isProcessing: false,
               step: 'success',
               lastTxid: result.txid,
-              message: `Payment successful! TxID: ${result.txid?.substring(0, 10)}...`,
+              message: translations[languageRef.current].systemMessages.paymentSuccessTx.replace(
+                '{txid}',
+                result.txid?.substring(0, 10) || ''
+              ),
             });
 
             refreshPaymentHistory();
@@ -1648,7 +1661,10 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setPaymentStatus({
               isProcessing: false,
               step: 'cancelled',
-              message: `Payment ${paymentId.substring(0, 8)}... was cancelled.`,
+              message: translations[languageRef.current].systemMessages.paymentCancelledMsg.replace(
+                '{id}',
+                paymentId.substring(0, 8)
+              ),
             });
             sounds.playError();
             resolve({ success: false, error: 'PAYMENT_CANCELLED' });
@@ -1656,7 +1672,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
           onError: (error) => {
             clearTimeout(watchdogTimer);
-            const msg = error.message || 'Payment processing encountered an error.';
+            const msg = error.message || translations[languageRef.current].systemMessages.paymentErrorMsg;
             setPaymentStatus({
               isProcessing: false,
               step: 'error',

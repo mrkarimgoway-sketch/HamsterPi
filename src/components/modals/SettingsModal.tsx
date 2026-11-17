@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { X, Volume2, VolumeX, Smartphone, Globe, Shield, RefreshCw, Lock } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
-import { translations } from '../../services/i18n';
+import { translations, SUPPORTED_LANGUAGES } from '../../services/i18n';
 import { piNetwork } from '../../services/piNetwork';
-import { Language } from '../../types/game';
 
 interface SettingsModalProps {
   onClose: () => void;
@@ -23,7 +22,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const isTestnet = piNetwork.getIsSandbox();
 
   const handleClearCache = () => {
-    if (window.confirm('Reset local cache and reload game?')) {
+    if (window.confirm(t.settings.resetConfirm)) {
       localStorage.removeItem('hamsterpi_save_v2');
       window.location.reload();
     }
@@ -55,7 +54,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               )}
               <div>
                 <div className="text-xs font-bold text-slate-200">{t.settings.soundEffects}</div>
-                <div className="text-[10px] text-slate-400">Web Audio arcade synthesizer</div>
+                <div className="text-[10px] text-slate-400">{t.settings.soundDesc}</div>
               </div>
             </div>
             <button
@@ -66,7 +65,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   : 'bg-slate-900 text-slate-400 border border-slate-800'
               }`}
             >
-              {!isMuted ? 'ON' : 'OFF'}
+              {!isMuted ? t.settings.on : t.settings.off}
             </button>
           </div>
 
@@ -76,7 +75,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <Smartphone className="w-5 h-5 text-purple-400" />
               <div>
                 <div className="text-xs font-bold text-slate-200">{t.settings.vibration}</div>
-                <div className="text-[10px] text-slate-400">Mobile tactile touch vibration</div>
+                <div className="text-[10px] text-slate-400">{t.settings.vibrationDesc}</div>
               </div>
             </div>
             <button
@@ -87,41 +86,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                   : 'bg-slate-900 text-slate-400 border border-slate-800'
               }`}
             >
-              {hapticEnabled ? 'ON' : 'OFF'}
+              {hapticEnabled ? t.settings.on : t.settings.off}
             </button>
           </div>
 
-          {/* Language Selector */}
+          {/* Language Selector (8 Languages) */}
           <div className="glass-panel rounded-xl p-3.5 border border-slate-800">
             <div className="flex items-center gap-3 mb-2.5">
               <Globe className="w-5 h-5 text-blue-400" />
               <div>
                 <div className="text-xs font-bold text-slate-200">{t.settings.language}</div>
-                <div className="text-[10px] text-slate-400">Instant English & Arabic RTL support</div>
+                <div className="text-[10px] text-slate-400">{t.settings.languageDesc}</div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setLanguage('en')}
-                className={`py-2 rounded-lg text-xs font-bold border transition-all ${
-                  language === 'en'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                English (US)
-              </button>
-              <button
-                onClick={() => setLanguage('ar')}
-                className={`py-2 rounded-lg text-xs font-bold border transition-all ${
-                  language === 'ar'
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
-                    : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
-                }`}
-              >
-                العربية (RTL)
-              </button>
+              {SUPPORTED_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => setLanguage(lang.code)}
+                  className={`py-2 px-2.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                    language === lang.code
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-sm'
+                      : 'bg-slate-900 text-slate-300 border-slate-800 hover:border-slate-700'
+                  }`}
+                >
+                  <span>{lang.flag}</span>
+                  <span className="truncate">{lang.nativeName}</span>
+                </button>
+              ))}
             </div>
           </div>
 
@@ -131,11 +124,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
               <Shield className="w-5 h-5 text-amber-400" />
               <div>
                 <div className="text-xs font-bold text-slate-200">{t.settings.piNetworkMode}</div>
-                <div className="text-[10px] text-slate-400">
-                  {language === 'ar'
-                    ? 'الشبكة المعتمدة رسمياً — تعمل شبكة واحدة فقط في كل مرة'
-                    : 'Authoritative network status — one network active at a time'}
-                </div>
+                <div className="text-[10px] text-slate-400">{t.settings.networkSubtitle}</div>
               </div>
             </div>
 
@@ -196,13 +185,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
             </div>
 
             <p className="text-[10px] text-slate-400 text-center mt-2.5">
-              {isTestnet
-                ? language === 'ar'
-                  ? '⚡ شبكة الاختبار (Testnet) نشطة رسمياً لمعاملات متصفح باي واختبارات التحقق.'
-                  : '⚡ Pi Testnet is active for Pi Browser transactions and 5-wallet verification.'
-                : language === 'ar'
-                ? '🌟 الشبكة الرئيسية (Mainnet) نشطة لمدفوعات باي الحقيقية الرسمية.'
-                : '🌟 Pi Mainnet is live for official real Pi cryptocurrency payments.'}
+              {isTestnet ? t.settings.testnetActiveNote : t.settings.mainnetActiveNote}
             </p>
           </div>
 

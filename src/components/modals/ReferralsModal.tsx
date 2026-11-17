@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Users, Copy, Check, Share2, Sparkles, Send } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
+import { translateRelativeTime } from '../../services/contentTranslations';
 
 interface ReferralsModalProps {
   onClose: () => void;
@@ -25,7 +26,7 @@ export const ReferralsModal: React.FC<ReferralsModalProps> = ({ onClose }) => {
 
   const handleShareTelegram = () => {
     const text = encodeURIComponent(
-      `🐹 Join HamsterPi with my referral code ${profile.referralCode} and claim 5,000 free bonus points!\n\nTAP. PLAY. UPGRADE. RULE THE PI WORLD.`
+      t.referrals.shareTextTelegram.replace('{code}', profile.referralCode)
     );
     const url = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${text}`;
     window.open(url, '_blank');
@@ -33,7 +34,9 @@ export const ReferralsModal: React.FC<ReferralsModalProps> = ({ onClose }) => {
 
   const handleShareWhatsapp = () => {
     const text = encodeURIComponent(
-      `🐹 Join HamsterPi with my referral code ${profile.referralCode} and claim 5,000 bonus points! ${referralLink}`
+      t.referrals.shareTextWhatsapp
+        .replace('{code}', profile.referralCode)
+        .replace('{link}', referralLink)
     );
     const url = `https://api.whatsapp.com/send?text=${text}`;
     window.open(url, '_blank');
@@ -104,14 +107,14 @@ export const ReferralsModal: React.FC<ReferralsModalProps> = ({ onClose }) => {
                 className="py-2 px-3 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
               >
                 <Send className="w-3.5 h-3.5" />
-                <span>Telegram</span>
+                <span>{t.referrals.shareTelegram}</span>
               </button>
               <button
                 onClick={handleShareWhatsapp}
                 className="py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all"
               >
                 <Share2 className="w-3.5 h-3.5" />
-                <span>WhatsApp</span>
+                <span>{t.referrals.shareWhatsapp}</span>
               </button>
             </div>
           </div>
@@ -136,7 +139,9 @@ export const ReferralsModal: React.FC<ReferralsModalProps> = ({ onClose }) => {
                     <div>
                       <div className="font-bold text-slate-200">{friend.username}</div>
                       <div className="text-[10px] text-slate-400">
-                        Joined {friend.joinedAt} · Level {friend.activeLevel}
+                        {t.referrals.joinedAtLevel
+                          .replace('{joinedAt}', translateRelativeTime(friend.joinedAt, language))
+                          .replace('{level}', String(friend.activeLevel))}
                       </div>
                     </div>
                     <div className="text-right font-mono font-bold text-emerald-400">

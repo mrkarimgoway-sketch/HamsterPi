@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
+import { getLocalizedProduct } from '../../services/contentTranslations';
 import {
   AVATAR_FRAMES,
   AvatarFrameId,
@@ -119,7 +120,7 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-100">{t.piStore.title}</h2>
-              <p className="text-[10px] text-purple-300 font-medium">0.001 π – 1.0 π Official Store</p>
+              <p className="text-[10px] text-purple-300 font-medium">{t.piStore.storeSubtitle}</p>
             </div>
           </div>
           <button
@@ -191,7 +192,7 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
           <div className="mx-4 mt-3 p-3 rounded-xl bg-rose-950/80 border border-rose-500/80 flex items-center gap-3">
             <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
             <div className="text-xs text-rose-200 font-medium">
-              <span className="font-bold">Error:</span> {paymentStatus.error}
+              <span className="font-bold">{t.piStore.errorPrefix}</span> {paymentStatus.error}
             </div>
           </div>
         )}
@@ -213,7 +214,7 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
               <div className="flex items-start gap-2.5">
                 <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="text-xs font-bold text-amber-300">Pi Browser Environment Required</h4>
+                  <h4 className="text-xs font-bold text-amber-300">{t.piStore.piBrowserTitle}</h4>
                   <p className="text-[11px] text-slate-300 mt-0.5 leading-relaxed">
                     {t.piStore.piBrowserNotice}
                   </p>
@@ -234,10 +235,13 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
             <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 flex items-center justify-between text-xs text-amber-300 font-bold">
               <div className="flex items-center gap-1.5">
                 <Zap className="w-4 h-4 fill-amber-400" />
-                <span>3X Multiplier Active!</span>
+                <span>{t.piStore.multiplierActive}</span>
               </div>
               <span className="text-[10px] text-amber-400/80 font-mono">
-                {Math.round(((stats.activeBoosterExpiresAt || 0) - Date.now()) / (1000 * 60))} mins left
+                {t.piStore.minsLeft.replace(
+                  '{mins}',
+                  String(Math.max(1, Math.round(((stats.activeBoosterExpiresAt || 0) - Date.now()) / (1000 * 60))))
+                )}
               </span>
             </div>
           )}
@@ -253,9 +257,7 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
           {activeTab !== 'history' ? (
             <div className="space-y-3">
               {visibleProducts.map((product) => {
-                const title = language === 'ar' ? product.nameAr : product.name;
-                const desc = language === 'ar' ? product.descriptionAr : product.description;
-                const badgeText = language === 'ar' ? product.badgeAr || product.badge : product.badge;
+                const { name: title, description: desc, badge: badgeText } = getLocalizedProduct(product, language);
                 const priceDisplay = formatPiPrice(product.pricePi);
                 const isBuying = paymentStatus.isProcessing && selectedProductId === product.id;
 
@@ -387,39 +389,61 @@ export const PiStoreModal: React.FC<PiStoreModalProps> = ({ onClose }) => {
                   <p>{t.piStore.noHistory}</p>
                 </div>
               ) : (
-                paymentHistory.map((rec) => (
-                  <div
-                    key={rec.id}
-                    className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between text-xs"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-200 truncate max-w-[180px]">
-                        {rec.memo || 'Pi In-Game Purchase'}
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                        {rec.created_at ? new Date(rec.created_at).toLocaleDateString() : 'Recent'} · ID:{' '}
-                        {rec.pi_payment_id.substring(0, 10)}...
-                      </div>
-                    </div>
+                paymentHistory.map((rec) => {
+                  const matchedProd = rec.product_id
+                    ? PI_PRODUCTS.find((p) => p.id === rec.product_id)
+                    : undefined;
+                  const localizedMemo = matchedProd
+                    ? getLocalizedProduct(matchedProd, language).name
+                    : rec.memo || t.piStore.defaultMemo;
+                  const statusUpper = String(rec.status || '').toUpperCase();
+                  const statusLabel =
+                    statusUpper === 'COMPLETED'
+                      ? t.piStore.statusCompleted
+                      : statusUpper === 'APPROVED'
+                      ? t.piStore.statusApproved
+                      : statusUpper === 'PENDING'
+                      ? t.piStore.statusPending
+                      : statusUpper === 'CANCELLED'
+                      ? t.piStore.statusCancelled
+                      : statusUpper === 'FAILED'
+                      ? t.piStore.statusFailed
+                      : rec.status;
 
-                    <div className="text-right">
-                      <div className="font-mono font-bold text-amber-400 tabular-nums">
-                        {formatPiPrice(Number(rec.amount || 0))} π
+                  return (
+                    <div
+                      key={rec.id}
+                      className="p-3 rounded-xl bg-slate-900/70 border border-slate-800 flex items-center justify-between text-xs"
+                    >
+                      <div>
+                        <div className="font-bold text-slate-200 truncate max-w-[180px]">
+                          {localizedMemo}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                          {rec.created_at ? new Date(rec.created_at).toLocaleDateString() : t.piStore.recentLabel} · {t.piStore.idLabel}{' '}
+                          {rec.pi_payment_id.substring(0, 10)}...
+                        </div>
                       </div>
-                      <span
-                        className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                          rec.status === 'COMPLETED'
-                            ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40'
-                            : rec.status === 'APPROVED'
-                            ? 'bg-blue-950/60 text-blue-400 border border-blue-800/40'
-                            : 'bg-rose-950/60 text-rose-400 border border-rose-800/40'
-                        }`}
-                      >
-                        {rec.status}
-                      </span>
+
+                      <div className="text-right">
+                        <div className="font-mono font-bold text-amber-400 tabular-nums">
+                          {formatPiPrice(Number(rec.amount || 0))} π
+                        </div>
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                            statusUpper === 'COMPLETED'
+                              ? 'bg-emerald-950/60 text-emerald-400 border border-emerald-800/40'
+                              : statusUpper === 'APPROVED'
+                              ? 'bg-blue-950/60 text-blue-400 border border-blue-800/40'
+                              : 'bg-rose-950/60 text-rose-400 border border-rose-800/40'
+                          }`}
+                        >
+                          {statusLabel}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           )}

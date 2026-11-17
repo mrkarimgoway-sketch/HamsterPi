@@ -1,4 +1,4 @@
-export type Language = 'en' | 'ar';
+export type Language = 'en' | 'ar' | 'vi' | 'id' | 'zh' | 'th' | 'tr' | 'ru';
 
 export type HamsterSkin = 'default' | 'king' | 'cyber';
 

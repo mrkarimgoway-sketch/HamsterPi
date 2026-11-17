@@ -51,8 +51,8 @@ const GamesHub: React.FC<{ onSelectGame: (key: ActiveGameKey) => void }> = ({ on
       desc: t.miniGames.rush.desc,
       icon: '⚡',
       color: 'from-amber-600 to-yellow-500',
-      badge: 'Reaction Arcade',
-      rewardRate: 'Up to 5,000 π',
+      badge: t.miniGames.rush.badge,
+      rewardRate: t.miniGames.upTo.replace('{amount}', '5,000'),
     },
     {
       key: 'jump' as ActiveGameKey,
@@ -60,8 +60,8 @@ const GamesHub: React.FC<{ onSelectGame: (key: ActiveGameKey) => void }> = ({ on
       desc: t.miniGames.jump.desc,
       icon: '🚀',
       color: 'from-purple-600 to-indigo-500',
-      badge: 'Endless Jumper',
-      rewardRate: 'Up to 6,000 π',
+      badge: t.miniGames.jump.badge,
+      rewardRate: t.miniGames.upTo.replace('{amount}', '6,000'),
     },
     {
       key: 'memory' as ActiveGameKey,
@@ -69,8 +69,8 @@ const GamesHub: React.FC<{ onSelectGame: (key: ActiveGameKey) => void }> = ({ on
       desc: t.miniGames.memory.desc,
       icon: '🧠',
       color: 'from-emerald-600 to-teal-500',
-      badge: 'Brain Challenge',
-      rewardRate: 'Up to 4,500 π',
+      badge: t.miniGames.memory.badge,
+      rewardRate: t.miniGames.upTo.replace('{amount}', '4,500'),
     },
     {
       key: 'puzzle' as ActiveGameKey,
@@ -78,8 +78,8 @@ const GamesHub: React.FC<{ onSelectGame: (key: ActiveGameKey) => void }> = ({ on
       desc: t.miniGames.puzzle.desc,
       icon: '🧩',
       color: 'from-blue-600 to-cyan-500',
-      badge: '3x3 Sliding Puzzle',
-      rewardRate: 'Up to 3,500 π',
+      badge: t.miniGames.puzzle.badge,
+      rewardRate: t.miniGames.upTo.replace('{amount}', '3,500'),
     },
     {
       key: 'subway' as ActiveGameKey,
@@ -87,8 +87,8 @@ const GamesHub: React.FC<{ onSelectGame: (key: ActiveGameKey) => void }> = ({ on
       desc: t.miniGames.subway.desc,
       icon: '🚇',
       color: 'from-cyan-600 to-purple-600',
-      badge: 'Metro Runner',
-      rewardRate: 'Up to 8,000 π',
+      badge: t.miniGames.subway.badge,
+      rewardRate: t.miniGames.upTo.replace('{amount}', '8,000'),
     },
   ];
 
@@ -108,13 +108,15 @@ const GamesHub: React.FC<{ onSelectGame: (key: ActiveGameKey) => void }> = ({ on
           <div>
             <div className="text-xs text-amber-400 font-medium">{t.miniGames.highScore}</div>
             <div className="text-base font-bold text-slate-100 font-mono">
-              {stats.highestMinigameScore.toLocaleString()} pts
+              {stats.highestMinigameScore.toLocaleString()} {t.miniGames.pts}
             </div>
           </div>
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-slate-400">Total Played</div>
-          <div className="text-sm font-bold text-slate-200">{stats.minigamesPlayed} sessions</div>
+          <div className="text-[10px] text-slate-400">{t.miniGames.totalPlayed}</div>
+          <div className="text-sm font-bold text-slate-200">
+            {t.miniGames.sessions.replace('{count}', String(stats.minigamesPlayed))}
+          </div>
         </div>
       </div>
 
@@ -315,9 +317,9 @@ const HamsterRushGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             {t.miniGames.rush.instructions}
           </p>
           <div className="flex justify-center gap-4 my-4 text-xs font-semibold">
-            <span className="text-amber-400">🪙 Coin: +15</span>
-            <span className="text-yellow-300">🌰 Seed: +30</span>
-            <span className="text-rose-400">💣 Bomb: -20</span>
+            <span className="text-amber-400">{t.miniGames.rush.coinTag}</span>
+            <span className="text-yellow-300">{t.miniGames.rush.seedTag}</span>
+            <span className="text-rose-400">{t.miniGames.rush.bombTag}</span>
           </div>
           <button
             onClick={startGame}
@@ -337,7 +339,7 @@ const HamsterRushGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               <span>{timeLeft}s</span>
             </div>
             <div className="text-base font-mono font-bold text-slate-100">
-              Score: <span className="text-amber-400">{score}</span>
+              {t.miniGames.score}: <span className="text-amber-400">{score}</span>
             </div>
           </div>
 
@@ -366,9 +368,9 @@ const HamsterRushGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         <div className="w-full glass-panel-gold rounded-2xl p-6 text-center border border-amber-500/40">
           <div className="text-4xl mb-2">🏆</div>
           <h2 className="text-lg font-bold text-amber-300">{t.miniGames.gameOver}</h2>
-          <div className="text-2xl font-mono font-bold text-slate-100 my-2">{score} pts</div>
+          <div className="text-2xl font-mono font-bold text-slate-100 my-2">{score} {t.miniGames.pts}</div>
           <div className="text-xs text-emerald-400 font-bold mb-4">
-            +{Math.max(0, score * 8).toLocaleString()} Hamster Points Claimed!
+            {t.miniGames.pointsClaimed.replace('{amount}', Math.max(0, score * 8).toLocaleString())}
           </div>
           <div className="flex gap-2">
             <button
@@ -505,7 +507,7 @@ const MemoryMatchGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   : 'bg-slate-900 text-slate-400 border border-slate-800'
               }`}
             >
-              {pairs * 2} Cards
+              {t.miniGames.memory.cards.replace('{count}', String(pairs * 2))}
             </button>
           ))}
         </div>
@@ -539,9 +541,9 @@ const MemoryMatchGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
       {isWon && (
         <div className="w-full glass-panel-gold rounded-2xl p-4 mt-4 text-center border border-amber-500/40">
-          <h3 className="text-sm font-bold text-amber-300">🎉 Memory Solved!</h3>
+          <h3 className="text-sm font-bold text-amber-300">{t.miniGames.memory.solvedTitle}</h3>
           <p className="text-xs text-emerald-400 font-bold mt-1">
-            +{(numPairs * 500).toLocaleString()} Points Awarded!
+            {t.miniGames.pointsAwarded.replace('{amount}', (numPairs * 500).toLocaleString())}
           </p>
           <button
             onClick={() => initGame(numPairs)}
@@ -673,7 +675,9 @@ const PiPuzzleGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       {isSolved && (
         <div className="w-full glass-panel-gold rounded-2xl p-4 mt-4 text-center border border-amber-500/40">
           <h3 className="text-sm font-bold text-amber-300">🎉 {t.miniGames.puzzle.solvedTitle}</h3>
-          <p className="text-xs text-emerald-400 font-bold mt-1">+2,000 Points Earned!</p>
+          <p className="text-xs text-emerald-400 font-bold mt-1">
+            {t.miniGames.pointsEarned.replace('{amount}', '2,000')}
+          </p>
           <button
             onClick={shuffle}
             className="mt-3 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs"
@@ -900,7 +904,7 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
       {(isPlaying || gameOver) && (
         <div className="relative w-full flex flex-col items-center">
           <div className="w-full flex justify-between items-center mb-2 px-2 text-xs font-mono font-bold text-slate-200">
-            <span>Altitude: {score}m</span>
+            <span>{t.miniGames.jump.height}: {score}m</span>
             <span className="text-amber-400">+{Math.floor(score * 1.5)} π</span>
           </div>
 
@@ -912,7 +916,7 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <h3 className="text-base font-bold text-rose-400">{t.miniGames.gameOver}</h3>
                 <div className="text-xl font-bold font-mono text-slate-100 my-1">{score}m</div>
                 <div className="text-xs text-emerald-400 font-bold mb-3">
-                  +{Math.floor(score * 1.5).toLocaleString()} Points Earned!
+                  {t.miniGames.pointsEarned.replace('{amount}', Math.floor(score * 1.5).toLocaleString())}
                 </div>
                 <button
                   onClick={startGame}
@@ -935,7 +939,7 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               onTouchCancel={() => (keysRef.current.left = false)}
               className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold text-sm active:bg-purple-900/60 select-none"
             >
-              ← Left
+              {t.miniGames.jump.left}
             </button>
             <button
               onMouseDown={() => (keysRef.current.right = true)}
@@ -946,7 +950,7 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               onTouchCancel={() => (keysRef.current.right = false)}
               className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold text-sm active:bg-purple-900/60 select-none"
             >
-              Right →
+              {t.miniGames.jump.right}
             </button>
           </div>
         </div>
@@ -1499,13 +1503,13 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           </p>
           <div className="grid grid-cols-3 gap-2 my-4 text-[11px] font-semibold">
             <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-emerald-300">
-              ⏱️ +4s Time
+              {t.miniGames.subway.clockTag}
             </div>
             <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-amber-300">
-              🪙 +15 / 🌰 +35
+              {t.miniGames.subway.coinSeedTag}
             </div>
             <div className="p-2 rounded-xl bg-slate-900/80 border border-slate-800 text-rose-300">
-              🚆 Dodge / Jump
+              {t.miniGames.subway.dodgeTag}
             </div>
           </div>
           <button
@@ -1562,13 +1566,15 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                 <div className="text-3xl mb-1">🚇</div>
                 <h3 className="text-lg font-bold text-amber-300">{t.miniGames.gameOver}</h3>
                 <div className="text-2xl font-mono font-black text-slate-100 my-1">
-                  {score.toLocaleString()} pts
+                  {score.toLocaleString()} {t.miniGames.pts}
                 </div>
                 <div className="text-[11px] text-cyan-300 font-semibold mb-1">
-                  ⏱️ +{clocksGrabbed * 4}s Extended ({clocksGrabbed} clocks)
+                  {t.miniGames.subway.extendedSummary
+                    .replace('{sec}', String(clocksGrabbed * 4))
+                    .replace('{count}', String(clocksGrabbed))}
                 </div>
                 <div className="text-xs text-emerald-400 font-bold mb-4">
-                  +{estimatedReward.toLocaleString()} Hamster Points Claimed!
+                  {t.miniGames.pointsClaimed.replace('{amount}', estimatedReward.toLocaleString())}
                 </div>
                 <div className="flex gap-2 w-full">
                   <button
@@ -1596,7 +1602,7 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               className="min-h-[48px] rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 active:bg-cyan-950/60 active:scale-95 text-slate-100 font-bold text-xs flex items-center justify-center gap-1 transition-all"
             >
               <ChevronLeft className="w-4 h-4" />
-              <span>{language === 'ar' ? 'يسار' : 'Left'}</span>
+              <span>{t.miniGames.subway.left}</span>
             </button>
 
             <button
@@ -1605,7 +1611,7 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               className="min-h-[48px] rounded-xl bg-gradient-to-r from-purple-700 to-cyan-600 active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1 shadow-md transition-all"
             >
               <ArrowUp className="w-4 h-4" />
-              <span>{language === 'ar' ? 'قفز' : 'Jump'}</span>
+              <span>{t.miniGames.subway.jumpBtn}</span>
             </button>
 
             <button
@@ -1613,7 +1619,7 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
               onClick={() => moveLane(1)}
               className="min-h-[48px] rounded-xl bg-slate-900 border border-slate-800 hover:border-cyan-500/50 active:bg-cyan-950/60 active:scale-95 text-slate-100 font-bold text-xs flex items-center justify-center gap-1 transition-all"
             >
-              <span>{language === 'ar' ? 'يمين' : 'Right'}</span>
+              <span>{t.miniGames.subway.right}</span>
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

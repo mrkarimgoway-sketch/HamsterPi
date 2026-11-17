@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
+import { getLocalizedUpgrade } from '../../services/contentTranslations';
 import { UpgradeItem, UpgradeCategory } from '../../types/game';
 
 interface UpgradesScreenProps {
@@ -43,7 +44,6 @@ type CategoryGroup = 'all' | 'combat' | 'passive' | 'energy' | 'lab';
 export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore }) => {
   const { language, balance, stats, upgrades, buyUpgrade } = useGame();
   const t = translations[language];
-  const isAr = language === 'ar';
 
   const [activeGroup, setActiveGroup] = useState<CategoryGroup>('all');
   const [purchasedId, setPurchasedId] = useState<string | null>(null);
@@ -145,15 +145,17 @@ export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore })
       case 'crit_chance':
         return t.upgrades.benefitCrit.replace('{value}', String(upgrade.baseBenefit));
       case 'crit_multiplier':
-        return `+${upgrade.baseBenefit}x Critical Mult`;
+        return t.upgrades.benefitCritMult.replace('{value}', String(upgrade.baseBenefit));
       case 'production_efficiency':
-        return `+${Math.round(upgrade.baseBenefit * 100)}% Global Yield`;
+        return t.upgrades.benefitEfficiency.replace('{value}', String(Math.round(upgrade.baseBenefit * 100)));
       case 'seed_harvest_rate':
-        return `+${upgrade.baseBenefit} Golden Harvest`;
+        return t.upgrades.benefitSeeds.replace('{value}', String(upgrade.baseBenefit));
       case 'combo_yield_multiplier':
-        return `+${Math.round(upgrade.baseBenefit * 100)}% Combo Boost`;
+        return t.upgrades.benefitCombo.replace('{value}', String(Math.round(upgrade.baseBenefit * 100)));
       case 'lucky_bonus_chance':
-        return `+${upgrade.baseBenefit}% Lucky Reactor`;
+        return t.upgrades.benefitLucky.replace('{value}', String(upgrade.baseBenefit));
+      case 'boost_duration_sec':
+        return t.upgrades.benefitBoostSec.replace('{value}', String(upgrade.baseBenefit));
       default:
         return `+${upgrade.baseBenefit}`;
     }
@@ -190,12 +192,12 @@ export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore })
                 {t.piStore.title}
               </div>
               <div className="text-[10px] text-purple-300 font-medium">
-                Priced in official Pi · Instant 3X multipliers & skins
+                {t.upgrades.piStoreBannerDesc}
               </div>
             </div>
           </div>
           <span className="text-[11px] font-bold text-amber-300 font-mono bg-purple-950/80 px-2.5 py-1 rounded-lg border border-purple-800/60">
-            Open Shop →
+            {t.upgrades.openShop}
           </span>
         </div>
       )}
@@ -203,25 +205,25 @@ export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore })
       {/* Category Navigation Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none mb-3">
         {[
-          { id: 'all', label: isAr ? 'الكل' : 'All Upgrades', count: upgrades.length },
+          { id: 'all', label: t.upgrades.tabAll, count: upgrades.length },
           {
             id: 'combat',
-            label: isAr ? 'النقر والقتال' : 'Tap & Combat',
+            label: t.upgrades.tabCombat,
             count: upgrades.filter((u) => ['tap_power', 'critical_tap', 'combo_mastery', 'golden_touch', 'hamster'].includes(u.category)).length,
           },
           {
             id: 'passive',
-            label: isAr ? 'الإنتاج والآلات' : 'Production',
+            label: t.upgrades.tabPassive,
             count: upgrades.filter((u) => ['passive_income', 'production_machines', 'auto_collector', 'power_core', 'business'].includes(u.category)).length,
           },
           {
             id: 'energy',
-            label: isAr ? 'الطاقة والتعافي' : 'Energy & Turbo',
+            label: t.upgrades.tabEnergy,
             count: upgrades.filter((u) => ['energy_capacity', 'energy_recovery', 'turbo_boost'].includes(u.category)).length,
           },
           {
             id: 'lab',
-            label: isAr ? 'المختبر والفريد' : 'Special Lab',
+            label: t.upgrades.tabLab,
             count: upgrades.filter((u) => ['special_lab', 'golden_seeds', 'lucky_reactor', 'special'].includes(u.category)).length,
           },
         ].map((tab) => (
@@ -260,8 +262,7 @@ export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore })
           const maxLvl = upgrade.maxLevel || 30;
           const progressPercent = Math.min(100, Math.round((upgrade.currentLevel / maxLvl) * 100));
 
-          const title = language === 'ar' ? upgrade.nameAr : upgrade.name;
-          const desc = language === 'ar' ? upgrade.descriptionAr : upgrade.description;
+          const { name: title, description: desc } = getLocalizedUpgrade(upgrade, language);
           const isJustBought = purchasedId === upgrade.id;
 
           return (
@@ -302,7 +303,7 @@ export const UpgradesScreen: React.FC<UpgradesScreenProps> = ({ onOpenPiStore })
 
                       {!isMaxed && !isLevelLocked && (
                         <span className="text-[10px] text-slate-400 font-mono">
-                          Next: {nextCost.toLocaleString()} π
+                          {t.upgrades.nextCost.replace('{cost}', nextCost.toLocaleString())}
                         </span>
                       )}
                     </div>

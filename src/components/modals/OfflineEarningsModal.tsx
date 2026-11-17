@@ -40,7 +40,7 @@ export const OfflineEarningsModal: React.FC = () => {
           </div>
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-1 font-medium">
             <Clock className="w-3.5 h-3.5 text-purple-400" />
-            <span>Accumulated over {durationStr} away</span>
+            <span>{t.game.offlineDuration.replace('{duration}', durationStr)}</span>
           </div>
         </div>
 

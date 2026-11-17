@@ -27,6 +27,8 @@ import {
   Users,
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
+import { translations } from '../../services/i18n';
+import { getLocalizedProject } from '../../services/contentTranslations';
 import { PI_ECOSYSTEM_PROJECTS, PiEcosystemProject } from '../../data/piProjects';
 import { PiProduct } from '../../data/piProducts';
 import { AnimatedGlobe } from '../projects/AnimatedGlobe';
@@ -39,9 +41,8 @@ export const ProjectsScreen: React.FC = () => {
     connectPiAccount,
     purchasePiProduct,
     paymentStatus,
-    profile,
   } = useGame();
-  const isAr = language === 'ar';
+  const t = translations[language];
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [contributionAmount, setContributionAmount] = useState<string>('25');
@@ -110,6 +111,9 @@ export const ProjectsScreen: React.FC = () => {
   };
 
   const selectedProject = PI_ECOSYSTEM_PROJECTS.find((p) => p.id === selectedProjectId);
+  const localizedSelectedProject = selectedProject
+    ? getLocalizedProject(selectedProject, language)
+    : null;
 
   const getFeatureIcon = (iconName: string) => {
     switch (iconName) {
@@ -145,15 +149,13 @@ export const ProjectsScreen: React.FC = () => {
   };
 
   const handleContributeClick = async () => {
-    if (!selectedProject) return;
+    if (!selectedProject || !localizedSelectedProject) return;
 
     const amt = parseFloat(contributionAmount);
     if (isNaN(amt) || amt < 0.1) {
       setContributionNotice({
         type: 'error',
-        message: isAr
-          ? 'يرجى إدخال مبلغ صحيح للمساهمة (الحد الأدنى 0.1 π).'
-          : 'Please enter a valid Pi contribution amount (minimum 0.1 π).',
+        message: t.projects.errMinAmount,
       });
       return;
     }
@@ -161,9 +163,7 @@ export const ProjectsScreen: React.FC = () => {
     if (!isPiBrowser) {
       setContributionNotice({
         type: 'error',
-        message: isAr
-          ? 'تتطلب مساهمات Pi الرسمية فتح التطبيق داخل متصفح Pi Browser الرسمي على الهاتف.'
-          : 'Official Pi contributions require opening HamsterPi in the official Pi Browser mobile app.',
+        message: t.projects.errPiBrowser,
       });
       return;
     }
@@ -171,15 +171,13 @@ export const ProjectsScreen: React.FC = () => {
     if (!isPiConnected) {
       setContributionNotice({
         type: 'info',
-        message: isAr
-          ? 'جارٍ الاتصال بحسابك في شبكة Pi...'
-          : 'Connecting to your Pi Network account...',
+        message: t.projects.connectingPi,
       });
       const authRes = await connectPiAccount(true);
       if (!authRes.success) {
         setContributionNotice({
           type: 'error',
-          message: authRes.error || (isAr ? 'فشل تسجيل الدخول بحساب Pi.' : 'Pi authentication failed.'),
+          message: authRes.error || t.projects.errAuthFailed,
         });
         return;
       }
@@ -190,13 +188,13 @@ export const ProjectsScreen: React.FC = () => {
     // Create authentic Pi payment product for this voluntary project support
     const supportProduct: PiProduct = {
       id: `support_${selectedProject.id}_${Date.now()}`,
-      name: `Project Support: ${selectedProject.name}`,
+      name: `${t.projects.supportProductPrefix}${localizedSelectedProject.name}`,
       nameAr: `دعم مشروع: ${selectedProject.nameAr}`,
-      description: `Voluntary Pi contribution to empower ${selectedProject.name}`,
+      description: `${t.projects.supportProductDescPrefix}${localizedSelectedProject.name}`,
       descriptionAr: `مساهمة مجتمعية طوعية لدعم وتطوير مشروع ${selectedProject.nameAr}`,
       pricePi: amt,
       icon: 'Coins',
-      badge: 'Project Support',
+      badge: t.projects.supportProductBadge,
       rewardType: 'points_bundle',
       rewardPayload: {
         points: Math.round(amt * 100000),
@@ -221,9 +219,10 @@ export const ProjectsScreen: React.FC = () => {
 
       setContributionNotice({
         type: 'success',
-        message: isAr
-          ? `🎉 شكراً جزيلاً! تم توثيق مساهمتك بـ ${amt} π لدعم ${selectedProject.nameAr} بنجاح على البلوكشين (TxID: ${res.txid?.substring(0, 10)}...). تم إضافة نقاط الدعم والبذور الذهبية إلى حسابك وحفظ العملية في سجل مدفوعات Pi!`
-          : `🎉 Thank you! Your contribution of ${amt} π to support ${selectedProject.name} was successfully completed on-chain (TxID: ${res.txid?.substring(0, 10)}...). Bonus points & Golden Seeds have been granted, and your payment is recorded in Pi Payment History!`,
+        message: t.projects.successContribution
+          .replace('{amount}', String(amt))
+          .replace('{name}', localizedSelectedProject.name)
+          .replace('{txid}', res.txid?.substring(0, 10) || ''),
       });
     } else if (res.error && res.error !== 'PAYMENT_CANCELLED') {
       setContributionNotice({
@@ -241,11 +240,11 @@ export const ProjectsScreen: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse" />
             <span className="text-[10px] font-black tracking-widest text-purple-400 uppercase">
-              {isAr ? 'منظومة مشاريع باي المستقلة' : 'Pi Ecosystem Showcase'}
+              {t.projects.ecosystemBadge}
             </span>
           </div>
           <h1 className="text-xl font-black text-slate-100 tracking-tight mt-0.5">
-            {isAr ? 'مشاريع تدعم مستقبل منظومة Pi' : 'Pi Ecosystem Projects'}
+            {t.projects.title}
           </h1>
         </div>
 
@@ -258,20 +257,18 @@ export const ProjectsScreen: React.FC = () => {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-xs font-bold text-slate-300 hover:text-amber-300 hover:border-amber-500/40 transition-all shadow-sm"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
-            <span>{isAr ? 'الرجوع للكوكبين' : 'Two-Globe View'}</span>
+            <span>{t.projects.backToGlobes}</span>
           </button>
         )}
       </div>
 
       {/* VIEW 1: PREMIER TWO-GLOBE INTERFACE */}
-      {!selectedProject ? (
+      {!selectedProject || !localizedSelectedProject ? (
         <div className="flex flex-col items-center space-y-6 my-auto py-2">
           {/* Subtitle / Intro */}
           <div className="text-center px-2">
             <p className="text-xs text-slate-400 leading-relaxed max-w-xs mx-auto">
-              {isAr
-                ? 'استكشف مشاريع الرواد التقنية المقترحة والمصممة خصيصاً لدعم المنفعة الحقيقية لشبكة Pi.'
-                : 'Explore pioneer-driven technology proposals built to expand authentic utility across the global Pi Network.'}
+              {t.projects.intro}
             </p>
           </div>
 
@@ -280,6 +277,7 @@ export const ProjectsScreen: React.FC = () => {
             {/* Globe 1: PiMind AI */}
             {(() => {
               const project = PI_ECOSYSTEM_PROJECTS[0];
+              const locProj = getLocalizedProject(project, language);
               return (
                 <div
                   key={project.id}
@@ -298,13 +296,13 @@ export const ProjectsScreen: React.FC = () => {
                     {/* Project Header Info */}
                     <div className="mt-2 space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-cyan-950/80 text-cyan-300 border border-cyan-500/40">
-                        {isAr ? 'ذكاء اصطناعي متعدد اللغات' : 'Multilingual AI Platform'}
+                        {t.projects.aiBadge}
                       </span>
                       <h2 className="text-lg font-black text-slate-100 group-hover:text-cyan-300 transition-colors">
-                        {isAr ? project.nameAr : project.name}
+                        {locProj.name}
                       </h2>
                       <p className="text-xs text-slate-400 line-clamp-2 max-w-xs">
-                        {isAr ? project.taglineAr : project.tagline}
+                        {locProj.tagline}
                       </p>
                     </div>
 
@@ -342,12 +340,12 @@ export const ProjectsScreen: React.FC = () => {
                             <div className="flex items-center gap-1">
                               <Users className="w-3.5 h-3.5 text-cyan-400" />
                               <span>
-                                {funding.totalBackers.toLocaleString()} {isAr ? 'رائد داعم' : 'Pioneers'}
+                                {funding.totalBackers.toLocaleString()} {t.projects.pioneers}
                               </span>
                             </div>
 
                             <div className="flex items-center gap-1 text-xs font-bold text-cyan-400 group-hover:translate-x-1 transition-transform">
-                              <span>{isAr ? 'استكشف وساهم' : 'Explore & Support'}</span>
+                              <span>{t.projects.exploreAndSupport}</span>
                               <ChevronRight className="w-4 h-4" />
                             </div>
                           </div>
@@ -362,6 +360,7 @@ export const ProjectsScreen: React.FC = () => {
             {/* Globe 2: Pi Battle Arena */}
             {(() => {
               const project = PI_ECOSYSTEM_PROJECTS[1];
+              const locProj = getLocalizedProject(project, language);
               return (
                 <div
                   key={project.id}
@@ -377,13 +376,13 @@ export const ProjectsScreen: React.FC = () => {
 
                     <div className="mt-2 space-y-1">
                       <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500/40">
-                        {isAr ? 'ألعاب باتل رويال ويب 3' : 'Web3 Battle Royale'}
+                        {t.projects.arenaBadge}
                       </span>
                       <h2 className="text-lg font-black text-slate-100 group-hover:text-amber-300 transition-colors">
-                        {isAr ? project.nameAr : project.name}
+                        {locProj.name}
                       </h2>
                       <p className="text-xs text-slate-400 line-clamp-2 max-w-xs">
-                        {isAr ? project.taglineAr : project.tagline}
+                        {locProj.tagline}
                       </p>
                     </div>
 
@@ -421,12 +420,12 @@ export const ProjectsScreen: React.FC = () => {
                             <div className="flex items-center gap-1">
                               <Users className="w-3.5 h-3.5 text-amber-400" />
                               <span>
-                                {funding.totalBackers.toLocaleString()} {isAr ? 'رائد داعم' : 'Pioneers'}
+                                {funding.totalBackers.toLocaleString()} {t.projects.pioneers}
                               </span>
                             </div>
 
                             <div className="flex items-center gap-1 text-xs font-bold text-amber-400 group-hover:translate-x-1 transition-transform">
-                              <span>{isAr ? 'استكشف وساهم' : 'Explore & Support'}</span>
+                              <span>{t.projects.exploreAndSupport}</span>
                               <ChevronRight className="w-4 h-4" />
                             </div>
                           </div>
@@ -443,13 +442,9 @@ export const ProjectsScreen: React.FC = () => {
           <div className="w-full p-4 rounded-2xl bg-slate-900/60 border border-slate-800 text-[11px] text-slate-400 leading-relaxed space-y-2 mt-4">
             <div className="flex items-center gap-2 text-amber-400 font-bold">
               <Info className="w-4 h-4 shrink-0" />
-              <span>{isAr ? 'إخلاء مسؤولية وشفافية المشاريع' : 'Project Transparency & Community Disclaimer'}</span>
+              <span>{t.projects.disclaimerTitle}</span>
             </div>
-            <p>
-              {isAr
-                ? 'هذه مشاريع تطوير مستقلة مقترحة ومدعومة من المجتمع. المساهمات اختيارية ولا تمثل استثمارًا أو ضمانًا للربح أو ملكية أو عائدًا ماليًا مضمونًا، وليست حملات تمويل رسمية تابعة لفريق Pi Core Team.'
-                : 'These are independent community-supported development proposals. Contributions are voluntary and do not represent an investment, guarantee of profit, ownership, or promised financial return. They are not official Pi Core Team fundraising campaigns.'}
-            </p>
+            <p>{t.projects.disclaimerBody}</p>
           </div>
         </div>
       ) : (
@@ -470,13 +465,13 @@ export const ProjectsScreen: React.FC = () => {
                 <span
                   className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border ${selectedProject.theme.badgeBg} ${selectedProject.theme.badgeText}`}
                 >
-                  {isAr ? 'مقترح تطوير مستقل' : 'Development Proposal'}
+                  {t.projects.proposalBadge}
                 </span>
                 <h2 className="text-xl font-black text-slate-100 truncate mt-1">
-                  {isAr ? selectedProject.nameAr : selectedProject.name}
+                  {localizedSelectedProject.name}
                 </h2>
                 <p className="text-xs text-slate-400 mt-0.5 leading-snug">
-                  {isAr ? selectedProject.taglineAr : selectedProject.tagline}
+                  {localizedSelectedProject.tagline}
                 </p>
               </div>
             </div>
@@ -484,7 +479,7 @@ export const ProjectsScreen: React.FC = () => {
             {/* Target Display */}
             <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs">
               <span className="text-slate-400 font-medium">
-                {isAr ? 'الهدف التمويلي للمشروع' : 'Community Funding Goal'}:
+                {t.projects.fundingGoal}:
               </span>
               <span className="font-mono text-base font-black text-amber-300">
                 {selectedProject.fundingTargetPi.toLocaleString()} π
@@ -505,7 +500,7 @@ export const ProjectsScreen: React.FC = () => {
                     </div>
                     <div>
                       <div className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                        {isAr ? 'التمويل المجتمعي المحقق' : 'Community Funding Progress'}
+                        {t.projects.fundingProgress}
                       </div>
                       <div className="flex items-baseline gap-1.5 mt-0.5">
                         <span className="text-xl font-mono font-black text-amber-300">
@@ -531,7 +526,7 @@ export const ProjectsScreen: React.FC = () => {
                     <div className="text-[10px] text-slate-400 mt-1 flex items-center justify-end gap-1 font-medium">
                       <Users className="w-3 h-3 text-purple-400" />
                       <span>
-                        {funding.totalBackers.toLocaleString()} {isAr ? 'داعم' : 'Backers'}
+                        {funding.totalBackers.toLocaleString()} {t.projects.backers}
                       </span>
                     </div>
                   </div>
@@ -556,7 +551,7 @@ export const ProjectsScreen: React.FC = () => {
                   <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5 text-emerald-300 font-bold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      <span>{isAr ? 'مساهمتك الموثقة في هذا المشروع:' : 'Your verified support:'}</span>
+                      <span>{t.projects.verifiedSupport}</span>
                     </div>
                     <span className="font-mono font-black text-amber-300 text-sm">
                       {funding.userContributed.toLocaleString()} π
@@ -571,24 +566,24 @@ export const ProjectsScreen: React.FC = () => {
           <div className="glass-panel rounded-2xl p-4 border border-slate-800 space-y-2">
             <h3 className="text-xs font-black uppercase tracking-wider text-purple-400 flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5" />
-              <span>{isAr ? 'رؤية ومفهوم المشروع' : 'Concept & Overview'}</span>
+              <span>{t.projects.conceptTitle}</span>
             </h3>
             <p className="text-xs text-slate-200 font-medium leading-relaxed">
-              {isAr ? selectedProject.conceptAr : selectedProject.concept}
+              {localizedSelectedProject.concept}
             </p>
             <p className="text-xs text-slate-400 leading-relaxed pt-1 border-t border-slate-900">
-              {isAr ? selectedProject.descriptionAr : selectedProject.description}
+              {localizedSelectedProject.description}
             </p>
           </div>
 
           {/* Planned Features */}
           <div className="space-y-2.5">
             <h3 className="text-xs font-black uppercase tracking-wider text-slate-300 px-1">
-              {isAr ? 'المزايا والمواصفات المخططة' : 'Planned Features'}
+              {t.projects.plannedFeaturesTitle}
             </h3>
 
             <div className="space-y-2">
-              {selectedProject.plannedFeatures.map((feat, idx) => (
+              {localizedSelectedProject.plannedFeatures.map((feat, idx) => (
                 <div
                   key={idx}
                   className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800/80 flex items-start gap-3 hover:border-slate-700 transition-colors"
@@ -598,10 +593,10 @@ export const ProjectsScreen: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="text-xs font-bold text-slate-100">
-                      {isAr ? feat.titleAr : feat.title}
+                      {feat.title}
                     </h4>
                     <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                      {isAr ? feat.descriptionAr : feat.description}
+                      {feat.description}
                     </p>
                   </div>
                 </div>
@@ -612,19 +607,19 @@ export const ProjectsScreen: React.FC = () => {
           {/* Expected Benefits to the Pi Community */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950/40 border border-indigo-900/40 space-y-2.5">
             <h3 className="text-xs font-black uppercase tracking-wider text-indigo-300">
-              {isAr ? 'القيمة المضافة لمجتمع Pi' : 'Expected Benefits to the Pi Community'}
+              {t.projects.communityBenefitsTitle}
             </h3>
 
             <div className="space-y-2">
-              {selectedProject.communityBenefits.map((ben, idx) => (
+              {localizedSelectedProject.communityBenefits.map((ben, idx) => (
                 <div key={idx} className="flex items-start gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
                     <h5 className="text-xs font-bold text-slate-200">
-                      {isAr ? ben.titleAr : ben.title}
+                      {ben.title}
                     </h5>
                     <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                      {isAr ? ben.descriptionAr : ben.description}
+                      {ben.description}
                     </p>
                   </div>
                 </div>
@@ -636,11 +631,11 @@ export const ProjectsScreen: React.FC = () => {
           <div className="glass-panel rounded-2xl p-4 border border-slate-800 space-y-3">
             <h3 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" />
-              <span>{isAr ? 'خارطة الطريق ومراحل التطوير' : 'Development Roadmap & Milestones'}</span>
+              <span>{t.projects.roadmapTitle}</span>
             </h3>
 
             <div className="space-y-3">
-              {selectedProject.milestones.map((m) => (
+              {localizedSelectedProject.milestones.map((m) => (
                 <div
                   key={m.id}
                   className="p-3 rounded-xl bg-slate-950/80 border border-slate-800/80 relative pl-4 border-l-2 border-l-amber-500"
@@ -652,10 +647,10 @@ export const ProjectsScreen: React.FC = () => {
                     </span>
                   </div>
                   <h4 className="text-xs font-bold text-slate-100 mt-1">
-                    {isAr ? m.titleAr : m.title}
+                    {m.title}
                   </h4>
                   <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                    {isAr ? m.descriptionAr : m.description}
+                    {m.description}
                   </p>
                 </div>
               ))}
@@ -668,18 +663,16 @@ export const ProjectsScreen: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Coins className="w-5 h-5 text-amber-400" />
                 <h3 className="text-sm font-bold text-slate-100">
-                  {isAr ? 'دعم المشروع بعملة Pi' : 'Voluntary Project Support in Pi'}
+                  {t.projects.supportTitle}
                 </h3>
               </div>
               <span className="text-[10px] font-bold text-amber-400 font-mono">
-                {selectedProject.fundingTargetPi.toLocaleString()} π Max
+                {t.projects.maxSuffix.replace('{amount}', selectedProject.fundingTargetPi.toLocaleString())}
               </span>
             </div>
 
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              {isAr
-                ? 'حدد مقدار عملة باي التي ترغب في المساهمة بها لدعم تطوير هذا المقترح.'
-                : 'Select or input any Pi amount you wish to contribute to support this project proposal.'}
+              {t.projects.supportSubtitle}
             </p>
 
             {/* Quick Amount Selector Chips */}
@@ -708,7 +701,7 @@ export const ProjectsScreen: React.FC = () => {
                 step="0.5"
                 value={contributionAmount}
                 onChange={(e) => setContributionAmount(e.target.value)}
-                placeholder={isAr ? 'أدخل مبلغ باي مخصص' : 'Enter custom Pi amount'}
+                placeholder={t.projects.customAmountPlaceholder}
                 className="w-full py-2.5 px-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-100 font-mono text-sm focus:outline-none focus:border-purple-500 pl-8"
               />
               <span className="absolute left-3 top-2.5 text-amber-400 font-bold font-mono text-sm">
@@ -730,17 +723,14 @@ export const ProjectsScreen: React.FC = () => {
                 <>
                   <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
                   <span>
-                    {paymentStatus.message ||
-                      (isAr ? 'جارٍ معالجة الدفع مع شبكة Pi...' : 'Processing Pi payment...')}
+                    {paymentStatus.message || t.projects.processingPayment}
                   </span>
                 </>
               ) : (
                 <>
                   <Coins className="w-4 h-4 text-amber-300" />
                   <span>
-                    {isAr
-                      ? `دعم المشروع بـ ${contributionAmount || 0} π`
-                      : `Support Project with ${contributionAmount || 0} π`}
+                    {t.projects.supportWithBtn.replace('{amount}', contributionAmount || '0')}
                   </span>
                 </>
               )}
@@ -775,13 +765,9 @@ export const ProjectsScreen: React.FC = () => {
           <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-[11px] text-slate-400 leading-relaxed space-y-1.5">
             <div className="flex items-center gap-1.5 font-bold text-amber-400">
               <Info className="w-3.5 h-3.5" />
-              <span>{isAr ? 'إخلاء المسؤولية الرسمي' : 'Official Voluntary Disclaimer'}</span>
+              <span>{t.projects.officialDisclaimerTitle}</span>
             </div>
-            <p>
-              {isAr
-                ? 'هذه مشاريع تطوير مستقلة مقترحة ومدعومة من المجتمع. المساهمات اختيارية ولا تمثل استثمارًا أو ضمانًا للربح أو ملكية أو عائدًا ماليًا مضمونًا، وليست حملات تمويل رسمية تابعة لفريق Pi Core Team.'
-                : 'These are independent community-supported development proposals. Contributions are voluntary and do not represent an investment, guarantee of profit, ownership, or promised financial return. They are not official Pi Core Team fundraising campaigns.'}
-            </p>
+            <p>{t.projects.disclaimerBody}</p>
           </div>
         </div>
       )}

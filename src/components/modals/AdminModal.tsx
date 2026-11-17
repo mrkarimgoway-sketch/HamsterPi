@@ -83,7 +83,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              System & Economy
+              {t.admin.tabOverview}
             </button>
             <button
               onClick={() => setActiveTab('projects')}
@@ -93,7 +93,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Projects Admin
+              {t.admin.tabProjects}
             </button>
           </div>
         </div>
@@ -103,9 +103,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
           {activeTab === 'projects' ? (
             <div className="space-y-4">
               <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-800/40 text-xs text-purple-200">
-                <span className="font-bold text-amber-300">Database Schema Notice:</span>
+                <span className="font-bold text-amber-300">{t.admin.dbSchemaNoticeTitle}</span>
                 <p className="mt-0.5 text-[11px] text-slate-300">
-                  Project configuration is active in server runtime. Live multi-admin database persistence will link to table <code className="text-amber-400">public.projects</code> and <code className="text-amber-400">public.project_contributions</code> once consolidated SQL is activated.
+                  {t.admin.dbSchemaNoticeBody}
                 </p>
               </div>
 
@@ -134,12 +134,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                         : 'bg-amber-950/80 text-amber-300 border-amber-500/50'
                     }`}
                   >
-                    {projectStatus.pimind_ai}
+                    {projectStatus.pimind_ai === 'ACTIVE' ? t.admin.statusActive : t.admin.statusPaused}
                   </button>
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-semibold">Funding Target (Pi)</label>
+                  <label className="text-[10px] text-slate-400 font-semibold">{t.admin.fundingTargetLabel}</label>
                   <input
                     type="number"
                     value={projectGoals.pimind_ai}
@@ -176,12 +176,12 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                         : 'bg-amber-950/80 text-amber-300 border-amber-500/50'
                     }`}
                   >
-                    {projectStatus.pi_battle_arena}
+                    {projectStatus.pi_battle_arena === 'ACTIVE' ? t.admin.statusActive : t.admin.statusPaused}
                   </button>
                 </div>
 
                 <div>
-                  <label className="text-[10px] text-slate-400 font-semibold">Funding Target (Pi)</label>
+                  <label className="text-[10px] text-slate-400 font-semibold">{t.admin.fundingTargetLabel}</label>
                   <input
                     type="number"
                     value={projectGoals.pi_battle_arena}
@@ -203,7 +203,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
             </div>
             <div className="glass-panel rounded-xl p-3 border border-slate-800">
               <div className="text-[10px] text-slate-400">{t.admin.dailyActive}</div>
-              <div className="text-base font-bold font-mono text-purple-300 mt-0.5">42,150 DAU</div>
+              <div className="text-base font-bold font-mono text-purple-300 mt-0.5">42,150 {t.admin.dauSuffix}</div>
             </div>
             <div className="glass-panel rounded-xl p-3 border border-slate-800">
               <div className="text-[10px] text-slate-400">{t.admin.totalPointsMinted}</div>
@@ -211,7 +211,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
             </div>
             <div className="glass-panel rounded-xl p-3 border border-slate-800">
               <div className="text-[10px] text-slate-400">{t.admin.suspiciousFlags}</div>
-              <div className="text-base font-bold font-mono text-emerald-400 mt-0.5">0 Clean</div>
+              <div className="text-base font-bold font-mono text-emerald-400 mt-0.5">0 {t.admin.cleanSuffix}</div>
             </div>
           </div>
 
@@ -219,7 +219,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
           <div className="glass-panel rounded-xl p-3 border border-slate-800 mb-2 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-slate-300">
               <Database className="w-4 h-4 text-emerald-400" />
-              <span>Supabase PostgreSQL Sync</span>
+              <span>{t.admin.supabaseSync}</span>
             </div>
             <span
               className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
@@ -228,7 +228,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                   : 'bg-amber-950/60 text-amber-400 border border-amber-800/40'
               }`}
             >
-              {isSupabaseConfigured ? 'CONNECTED' : 'LOCAL CACHE READY'}
+              {isSupabaseConfigured ? t.admin.connected : t.admin.localCacheReady}
             </span>
           </div>
 
@@ -236,10 +236,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
           <div className="glass-panel rounded-xl p-3 border border-slate-800 mb-3 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 text-slate-300">
               <span className="font-bold text-amber-400">π</span>
-              <span>Pi Platform API / Payments</span>
+              <span>{t.admin.piPlatformApi}</span>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded font-bold bg-purple-950/60 text-purple-300 border border-purple-800/40">
-              ACTIVE V2
+              {t.admin.activeV2}
             </span>
           </div>
 
@@ -248,7 +248,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2 text-slate-200">
                 <span className="text-amber-400 font-bold">⚡</span>
-                <span className="font-bold">Pi Blockchain Target</span>
+                <span className="font-bold">{t.admin.piBlockchainTarget}</span>
               </div>
               <span
                 className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
@@ -257,7 +257,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                     : 'bg-amber-950/60 text-amber-300 border border-amber-800/40'
                 }`}
               >
-                {isAdminTestnet ? 'TESTNET' : 'MAINNET LIVE'}
+                {isAdminTestnet ? t.admin.testnetBadge : t.admin.mainnetBadge}
               </span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-1">
@@ -270,7 +270,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                     : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
                 }`}
               >
-                Testnet (Active)
+                {t.admin.testnetActiveBtn}
               </button>
               <button
                 type="button"
@@ -281,13 +281,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
                     : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-slate-200'
                 }`}
               >
-                Mainnet Live
+                {t.admin.mainnetLiveBtn}
               </button>
             </div>
             <p className="text-[10px] text-slate-400 mt-2">
-              {isAdminTestnet
-                ? 'Transactions route to the official Pi Testnet blockchain for 5-wallet verification.'
-                : 'Transactions route to real Pi Mainnet. (Requires approved Mainnet App Wallet from Core Team).'}
+              {isAdminTestnet ? t.admin.testnetTargetDesc : t.admin.mainnetTargetDesc}
             </p>
           </div>
 
@@ -350,7 +348,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({ onClose }) => {
               className="w-full mt-2.5 py-2 rounded-xl bg-amber-500 text-slate-950 font-bold text-xs flex items-center justify-center gap-1 shadow-sm active:scale-95 transition-all"
             >
               {saved ? <Check className="w-3.5 h-3.5" /> : null}
-              <span>{saved ? 'Settings Updated!' : t.admin.saveChanges}</span>
+              <span>{saved ? t.admin.settingsUpdated : t.admin.saveChanges}</span>
             </button>
           </div>
 

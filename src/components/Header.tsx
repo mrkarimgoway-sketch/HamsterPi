@@ -2,6 +2,7 @@ import React from 'react';
 import { Volume2, VolumeX, Shield, Sparkles, Settings as SettingsIcon, ShoppingBag } from 'lucide-react';
 import { useGame } from '../context/GameContext';
 import { translations } from '../services/i18n';
+import { translateLevelTitle } from '../services/contentTranslations';
 import { HAMSTER_SKINS } from '../data/initialData';
 import { getAvatarFrameConfig } from '../data/piProducts';
 
@@ -35,7 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenProfile}
           className="flex items-center gap-2.5 min-w-0 text-left hover:opacity-85 transition-opacity cursor-pointer group"
-          title={language === 'ar' ? 'عرض الملف الشخصي' : 'View Pioneer Profile'}
+          title={t.header.viewProfile}
         >
           <div className="relative shrink-0">
             <img
@@ -57,7 +58,7 @@ export const Header: React.FC<HeaderProps> = ({
             )}
             {profile.isPiConnected && (
               <span
-                title="Verified Pi Pioneer"
+                title={t.header.verifiedPioneer}
                 className="absolute -bottom-1 -right-1 w-4 h-4 bg-purple-600 rounded-full border-2 border-slate-950 flex items-center justify-center text-[8px] font-bold text-amber-300"
               >
                 π
@@ -75,7 +76,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
             <div className="text-[11px] text-amber-400/90 font-medium tracking-tight truncate">
-              {stats.levelTitle} · Lvl {stats.level}
+              {translateLevelTitle(stats.levelTitle, language)} · {t.upgrades.level} {stats.level}
             </div>
           </div>
         </button>
@@ -89,7 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
             title={t.piStore.title}
           >
             <ShoppingBag className="w-3.5 h-3.5 text-amber-300" />
-            <span className="font-mono text-amber-300">π Shop</span>
+            <span className="font-mono text-amber-300">{t.header.piShop}</span>
           </button>
 
           {/* Quick Rank Button */}
@@ -105,7 +106,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={toggleSound}
             className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors"
-            aria-label="Toggle Sound"
+            aria-label={t.header.toggleSound}
           >
             {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
           </button>
@@ -139,10 +140,10 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={onOpenLeaderboard}
           className="flex items-center gap-1 text-[11px] text-slate-400 hover:text-amber-300 transition-colors cursor-pointer py-0.5 px-1.5 rounded-lg hover:bg-slate-900 border border-transparent hover:border-slate-800"
-          title="View Top 100 Miners Ranking"
+          title={t.header.viewRankings}
         >
           <span className="text-purple-400 font-medium">⚡ +{formattedPerHour}</span>
-          <span>/ hr</span>
+          <span>{t.leaderboard.perHour}</span>
         </button>
 
         {/* Golden Seeds */}

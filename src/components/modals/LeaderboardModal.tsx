@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { X, Trophy, Crown, Medal, Zap, Search, ArrowUp, RefreshCw, Users } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
+import { translateLevelTitle } from '../../services/contentTranslations';
 import { HAMSTER_SKINS } from '../../data/initialData';
 import { MinerLeaderboardEntry } from '../../types/game';
 import { dbService } from '../../services/supabaseClient';
@@ -44,7 +45,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
   const { rankedMiners, currentPlayerRank } = useMemo(() => {
     const playerPerHour = stats.passiveRatePerHour || 0;
     const playerPerSec = stats.passiveRatePerSec || (playerPerHour / 3600);
-    const pUsername = profile.username || 'You';
+    const pUsername = profile.username || t.leaderboard.youName;
 
     // Remove current player from database list if already present to avoid duplication
     const otherMiners = realMiners.filter(
@@ -85,7 +86,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
       rankedMiners: assignedRanks,
       currentPlayerRank: pRank,
     };
-  }, [realMiners, profile.username, profile.currentSkin, stats.passiveRatePerHour, stats.passiveRatePerSec, stats.level, stats.levelTitle, balance.points, rankingMode]);
+  }, [realMiners, profile.username, profile.currentSkin, stats.passiveRatePerHour, stats.passiveRatePerSec, stats.level, stats.levelTitle, balance.points, rankingMode, t.leaderboard.youName]);
 
   // Apply filters and search
   const displayedMiners = useMemo(() => {
@@ -132,13 +133,11 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
               <h2 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
                 <span>{t.leaderboard.title}</span>
                 <span className="text-[9px] bg-emerald-950 text-emerald-400 font-bold px-1.5 py-0.5 rounded-full border border-emerald-800/50">
-                  REAL PIONEERS
+                  {t.leaderboard.realPioneersBadge}
                 </span>
               </h2>
               <p className="text-[10px] text-slate-400">
-                {language === 'ar'
-                  ? 'لوحة الصدارة الحقيقية لرواد شبكة باي'
-                  : 'Live real ranking for verified Pi Network Pioneers'}
+                {t.leaderboard.realPioneersSubtitle}
               </p>
             </div>
           </div>
@@ -146,7 +145,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
             <button
               onClick={loadRealLeaderboard}
               disabled={isLoading}
-              title="Refresh Leaderboard"
+              title={t.leaderboard.refreshTooltip}
               className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 hover:text-slate-100 transition-colors"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-amber-400' : ''}`} />
@@ -255,7 +254,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
               <span className="text-slate-500">|</span>
               <span className="text-purple-300 font-mono font-bold">
                 {rankingMode === 'mining_rate'
-                  ? `⚡ +${stats.passiveRatePerHour.toLocaleString()}/hr`
+                  ? `⚡ +${stats.passiveRatePerHour.toLocaleString()} ${t.leaderboard.perHour}`
                   : `🏆 ${Math.floor(balance.points).toLocaleString()} π`}
               </span>
             </div>
@@ -294,7 +293,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
                   </div>
                   <div className="text-[10px] font-mono text-purple-300 font-bold mt-0.5">
                     {rankingMode === 'mining_rate'
-                      ? `⚡ +${topThree[1].miningRatePerHour.toLocaleString()}/hr`
+                      ? `⚡ +${topThree[1].miningRatePerHour.toLocaleString()} ${t.leaderboard.perHour}`
                       : `${topThree[1].totalPoints.toLocaleString()} π`}
                   </div>
                   <div className="w-20 h-14 mt-1.5 rounded-t-xl bg-gradient-to-t from-slate-900 to-slate-800 border-t border-slate-300 flex items-center justify-center font-black text-slate-300 text-sm shadow">
@@ -322,7 +321,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
                   </div>
                   <div className="text-[10px] font-mono text-amber-300 font-bold mt-0.5 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-700/50">
                     {rankingMode === 'mining_rate'
-                      ? `⚡ +${topThree[0].miningRatePerHour.toLocaleString()}/hr`
+                      ? `⚡ +${topThree[0].miningRatePerHour.toLocaleString()} ${t.leaderboard.perHour}`
                       : `${topThree[0].totalPoints.toLocaleString()} π`}
                   </div>
                   <div className="w-24 h-20 mt-1.5 rounded-t-xl bg-gradient-to-t from-amber-950/70 to-amber-600/30 border-t-2 border-amber-400 flex items-center justify-center font-black text-amber-300 text-base shadow-lg">
@@ -350,7 +349,7 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
                   </div>
                   <div className="text-[10px] font-mono text-amber-500 font-bold mt-0.5">
                     {rankingMode === 'mining_rate'
-                      ? `⚡ +${topThree[2].miningRatePerHour.toLocaleString()}/hr`
+                      ? `⚡ +${topThree[2].miningRatePerHour.toLocaleString()} ${t.leaderboard.perHour}`
                       : `${topThree[2].totalPoints.toLocaleString()} π`}
                   </div>
                   <div className="w-20 h-11 mt-1.5 rounded-t-xl bg-gradient-to-t from-slate-900 to-amber-950/50 border-t border-amber-700 flex items-center justify-center font-black text-amber-600 text-sm shadow">
@@ -424,12 +423,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
                         </span>
                         {isCurrent && (
                           <span className="text-[8px] bg-amber-500 text-slate-950 font-black px-1.5 py-0.2 rounded shrink-0">
-                            YOU
+                            {t.leaderboard.youBadge}
                           </span>
                         )}
                       </div>
                       <div className="text-[10px] text-slate-400 truncate">
-                        Lvl {miner.level} · {miner.levelTitle}
+                        {t.upgrades.level} {miner.level} · {translateLevelTitle(miner.levelTitle, language)}
                       </div>
                     </div>
                   </div>
@@ -441,10 +440,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
                         <div className="font-mono font-black text-amber-400 text-xs flex items-center justify-end gap-1">
                           <Zap className="w-3 h-3 text-amber-400 shrink-0" />
                           <span>+{miner.miningRatePerHour.toLocaleString()}</span>
-                          <span className="text-[10px] text-slate-400 font-normal">/hr</span>
+                          <span className="text-[10px] text-slate-400 font-normal">{t.leaderboard.perHour}</span>
                         </div>
                         <div className="text-[10px] font-mono text-purple-300">
-                          +{miner.miningRatePerSec.toFixed(1)} /s
+                          +{miner.miningRatePerSec.toFixed(1)} {t.leaderboard.perSec}
                         </div>
                       </>
                     ) : (
@@ -461,12 +460,10 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
               <div className="text-center py-6 px-4 glass-panel rounded-2xl border border-slate-800/80 mt-2">
                 <Users className="w-8 h-8 text-amber-400/80 mx-auto mb-2" />
                 <h3 className="text-xs font-bold text-slate-200">
-                  {language === 'ar' ? 'أنت في الصدارة!' : 'You are in the Lead!'}
+                  {t.leaderboard.leadTitle}
                 </h3>
                 <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
-                  {language === 'ar'
-                    ? 'هذه اللوحة حقيقية 100% ولا تحتوي على مستخدمين وهميين. مع انضمام المزيد من الرواد الحقيقيين سيتنافسون معك هنا!'
-                    : 'This leaderboard displays 100% genuine Pioneers with zero fake bots. As real players join via Pi Browser, they will appear here in real time!'}
+                  {t.leaderboard.leadDesc}
                 </p>
               </div>
             )}
@@ -482,12 +479,12 @@ export const LeaderboardModal: React.FC<LeaderboardModalProps> = ({ onClose }) =
             </span>
             <span className="text-slate-500">·</span>
             <span className="text-amber-300 font-mono font-bold">
-              ⚡ +{stats.passiveRatePerHour.toLocaleString()}/hr
+              ⚡ +{stats.passiveRatePerHour.toLocaleString()} {t.leaderboard.perHour}
             </span>
           </div>
 
           <span className="text-[10px] text-emerald-400 font-bold bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/40">
-            Real Pi Leaderboard ✓
+            {t.leaderboard.realLeaderboardBadge}
           </span>
         </div>
       </div>

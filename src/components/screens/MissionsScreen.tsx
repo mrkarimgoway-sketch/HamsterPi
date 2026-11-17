@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
+import { getLocalizedSocialTask, getLocalizedMission } from '../../services/contentTranslations';
 import { DAILY_LOGIN_REWARDS } from '../../data/initialData';
 import {
   SOCIAL_TASKS,
@@ -202,7 +203,7 @@ export const MissionsScreen: React.FC = () => {
     const task = SOCIAL_TASKS.find((item) => item.id === pending!.taskId);
     const res = completeSocialTask(pending.taskId);
     if (res.success && task) {
-      const taskTitle = language === 'ar' ? task.titleAr : task.title;
+      const taskTitle = getLocalizedSocialTask(task, language).title;
       showFeedback(
         'success',
         t.missions.socialSuccessToast
@@ -334,8 +335,8 @@ export const MissionsScreen: React.FC = () => {
           </div>
           <span className="text-[11px] font-semibold text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-800/40">
             {isDailyRewardClaimable
-              ? `Day ${activeDayIndex} of 7`
-              : `Day ${lastClaimedDayIndex} Claimed ✓`}
+              ? t.missions.dayOf7.replace('{day}', String(activeDayIndex))
+              : t.missions.dayClaimedCheck.replace('{day}', String(lastClaimedDayIndex))}
           </span>
         </div>
 
@@ -389,7 +390,7 @@ export const MissionsScreen: React.FC = () => {
                   </span>
                 ) : (
                   <span className="w-full mt-1.5 py-0.5 text-center text-slate-600 font-medium text-[8px]">
-                    Day {reward.day}
+                    {t.missions.day} {reward.day}
                   </span>
                 )}
               </div>
@@ -403,7 +404,7 @@ export const MissionsScreen: React.FC = () => {
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-slate-300 font-medium">
-                {language === 'ar' ? 'مكافأة الغد تفتح خلال:' : 'Next Streak Reward Unlocks In:'}
+                {t.missions.nextStreakUnlocks}
               </span>
             </div>
             <span className="text-xs font-mono font-bold tabular-nums text-amber-400 bg-amber-950/50 px-2 py-0.5 rounded border border-amber-800/40">
@@ -415,7 +416,7 @@ export const MissionsScreen: React.FC = () => {
             <div className="flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-amber-200 font-bold">
-                {language === 'ar' ? 'مكافأتك اليومية جاهزة للاستلام الآن!' : 'Your daily login reward is ready to claim!'}
+                {t.missions.dailyReadyBanner}
               </span>
             </div>
             <button
@@ -438,16 +439,14 @@ export const MissionsScreen: React.FC = () => {
             <div>
               <div className="flex items-center gap-1.5">
                 <h2 className="text-xs font-bold text-purple-200">
-                  {language === 'ar' ? 'شبكة إعلانات باي: دفعة طاقة' : 'Pi Ad Network: Power Surge'}
+                  {t.missions.adTitle}
                 </h2>
                 <span className="text-[9px] font-bold text-purple-300 bg-purple-900/60 px-1.5 py-0.5 rounded-full border border-purple-700/50">
-                  {language === 'ar' ? 'كل 3 ساعات' : '3-Hour Cooldown'}
+                  {t.missions.adCooldownBadge}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 mt-0.5">
-                {language === 'ar'
-                  ? 'شاهد إعلان باي واحصل فوراً على نقاط وبذور ومضاعف نقر مضاعف 2x لمدة 30 دقيقة'
-                  : 'Watch an official Pi video ad to claim bonus points, seeds & a 30m 2x boost'}
+                {t.missions.adDesc}
               </p>
             </div>
           </div>
@@ -463,7 +462,7 @@ export const MissionsScreen: React.FC = () => {
           </div>
           <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-950/50 border border-purple-700/50 text-purple-300 text-xs font-bold">
             <Zap className="w-3 h-3 text-purple-400" />
-            <span>2x Boost (30m)</span>
+            <span>{t.missions.adBoostTag}</span>
           </div>
         </div>
 
@@ -474,19 +473,11 @@ export const MissionsScreen: React.FC = () => {
             className="w-full py-2.5 px-4 rounded-xl font-bold text-xs flex items-center justify-center gap-2 bg-slate-800/80 border border-slate-700/60 text-slate-400 cursor-not-allowed opacity-90 shadow-inner"
           >
             <Clock className="w-4 h-4 text-purple-400" />
-            <span>
-              {language === 'ar'
-                ? 'إعلانات باي: مجمدة مؤقتاً (قيد مراجعة فريق باي)'
-                : 'Pi Ads: Temporarily Frozen (In Review by Pi Core Team)'}
-            </span>
+            <span>{t.missions.adFrozenBtn}</span>
           </button>
           <div className="p-2 rounded-xl bg-purple-950/30 border border-purple-800/30 text-[11px] text-purple-300/90 flex items-start gap-2">
             <span className="font-bold text-amber-400 shrink-0">ℹ️</span>
-            <span>
-              {language === 'ar'
-                ? 'إعلانات مكافآت باي الرسمية تخضع لمراجعة واعتماد فريق باي الأساسي. تم تجميد الزر لحماية استقرار اللعبة، وسيتفعل فور اعتماد وحدة الإعلانات للتطبيق.'
-                : 'Official Pi Rewarded Video Ads are currently under review by the Pi Core Team. This feature is safely paused to prevent glitches and will automatically activate once approved.'}
-            </span>
+            <span>{t.missions.adFrozenInfo}</span>
           </div>
         </div>
       </div>
@@ -605,9 +596,7 @@ export const MissionsScreen: React.FC = () => {
             const isCompletedToday = lastDoneAt > 0 && cooldownRemaining > 0;
             const isVerifying = verifyingTaskId === task.id;
 
-            const title = language === 'ar' ? task.titleAr : task.title;
-            const desc = language === 'ar' ? task.descriptionAr : task.description;
-            const actionLabel = language === 'ar' ? task.actionLabelAr : task.actionLabel;
+            const { title, description: desc, actionLabel } = getLocalizedSocialTask(task, language);
 
             return (
               <div
@@ -661,7 +650,7 @@ export const MissionsScreen: React.FC = () => {
                   ) : (
                     <>
                       <span className="text-[10px] text-slate-400 font-medium">
-                        {isVerifying ? t.missions.socialChecking : '5s+ external visit'}
+                        {isVerifying ? t.missions.socialChecking : t.missions.externalVisit5s}
                       </span>
 
                       <a
@@ -689,8 +678,7 @@ export const MissionsScreen: React.FC = () => {
               100,
               Math.round((mission.currentProgress / mission.targetCount) * 100)
             );
-            const title = language === 'ar' ? mission.titleAr : mission.title;
-            const desc = language === 'ar' ? mission.descriptionAr : mission.description;
+            const { title, description: desc } = getLocalizedMission(mission, language);
 
             return (
               <div
@@ -760,7 +748,7 @@ export const MissionsScreen: React.FC = () => {
                       </button>
                     ) : (
                       <span className="text-[11px] font-medium text-slate-500 px-3 py-1">
-                        In Progress
+                        {t.missions.inProgress}
                       </span>
                     )}
                   </div>

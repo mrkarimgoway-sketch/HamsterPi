@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Zap, Sparkles, Trophy, ChevronRight, Gift, Flame, CheckCircle2 } from 'lucide-react';
 import { useGame } from '../../context/GameContext';
 import { translations } from '../../services/i18n';
+import { translateLevelTitle, getLocalizedSkin } from '../../services/contentTranslations';
 import { HAMSTER_SKINS } from '../../data/initialData';
 import { getAvatarFrameConfig } from '../../data/piProducts';
 import { TabType } from '../Navigation';
@@ -33,7 +34,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const t = translations[language];
   const skin = HAMSTER_SKINS[activeSkin] || HAMSTER_SKINS.default;
+  const localizedSkin = getLocalizedSkin(activeSkin, skin, language);
   const frameConfig = getAvatarFrameConfig(equippedFrame);
+  const DEFAULT_BROADCAST = '🎉 HamsterPi Pi Network Ecosystem: Official authentication and payments active!';
 
   const [isTapped, setIsTapped] = useState(false);
   const [combo, setCombo] = useState(0);
@@ -76,7 +79,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="w-full mb-3 px-3 py-1.5 rounded-xl bg-purple-950/40 border border-purple-800/40 flex items-center justify-between text-xs text-purple-200">
           <div className="flex items-center gap-1.5 truncate">
             <span className="text-amber-400">📢</span>
-            <span className="truncate">{adminSettings.broadcastNotice}</span>
+            <span className="truncate">
+              {adminSettings.broadcastNotice === DEFAULT_BROADCAST
+                ? t.home.defaultBroadcast
+                : adminSettings.broadcastNotice}
+            </span>
           </div>
           <button
             onClick={() => onNavigate('missions')}
@@ -92,7 +99,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="flex items-center justify-between text-xs mb-1.5">
           <div className="flex items-center gap-1.5 font-bold text-slate-200">
             <Trophy className="w-4 h-4 text-amber-400" />
-            <span>{stats.levelTitle}</span>
+            <span>{translateLevelTitle(stats.levelTitle, language)}</span>
             <span className="text-[11px] text-slate-400 font-normal">
               · {t.game.level} {stats.level}
             </span>
@@ -101,7 +108,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             onClick={onOpenLeaderboard}
             className="text-[11px] text-amber-400/90 font-medium hover:text-amber-300 flex items-center gap-0.5"
           >
-            <span>Rank #5</span>
+            <span>{t.home.rankBadge}</span>
             <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -114,8 +121,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           />
         </div>
         <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
-          <span>{Math.floor(balance.lifetimePoints).toLocaleString()} pts</span>
-          <span>Next: {nextThreshold.toLocaleString()} pts</span>
+          <span>{Math.floor(balance.lifetimePoints).toLocaleString()} {t.home.pts}</span>
+          <span>{t.home.nextGoal.replace('{amount}', nextThreshold.toLocaleString())}</span>
         </div>
       </div>
 
@@ -142,8 +149,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <div className="text-xs font-bold text-slate-100">{t.missions.dailyLogin}</div>
               <div className="text-[10px] text-amber-400/80 font-medium">
                 {isDailyRewardClaimable
-                  ? `Day ${((stats.loginStreak - 1) % 7) + 1} Ready`
-                  : `Day ${((stats.loginStreak - 2 + 7) % 7) + 1} Claimed ✓`}
+                  ? t.home.dayReady.replace('{day}', String(((stats.loginStreak - 1) % 7) + 1))
+                  : t.home.dayClaimed.replace('{day}', String(((stats.loginStreak - 2 + 7) % 7) + 1))}
               </div>
             </div>
           </div>
@@ -165,10 +172,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
             <div>
               <div className="text-xs font-bold text-purple-200">{t.miniGames.title}</div>
-              <div className="text-[10px] text-purple-400/80 font-medium">5 Games</div>
+              <div className="text-[10px] text-purple-400/80 font-medium">{t.home.gamesCount}</div>
             </div>
           </div>
-          <span className="text-[11px] font-bold text-purple-300 pointer-events-none">Play</span>
+          <span className="text-[11px] font-bold text-purple-300 pointer-events-none">{t.home.playBtn}</span>
         </button>
       </div>
 
@@ -177,14 +184,16 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         <div className="w-full mb-2.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 via-purple-600/30 to-amber-500/20 border border-amber-400/50 flex items-center justify-between text-xs font-bold text-amber-300 animate-pulse select-none">
           <div className="flex items-center gap-1.5 pointer-events-none">
             <Zap className="w-4 h-4 fill-amber-400" />
-            <span>{stats.activeBoosterMultiplier}x Hyper Booster Active!</span>
+            <span>{t.home.boosterActive.replace('{mult}', String(stats.activeBoosterMultiplier))}</span>
           </div>
           <span className="text-[10px] font-mono text-purple-200 pointer-events-none tabular-nums">
             {(() => {
               const totalMins = Math.max(1, Math.round((stats.activeBoosterExpiresAt - Date.now()) / (1000 * 60)));
               const hrs = Math.floor(totalMins / 60);
               const mins = totalMins % 60;
-              return hrs > 0 ? `${hrs}h ${mins}m left` : `${mins}m left`;
+              return hrs > 0
+                ? t.home.timeLeftHm.replace('{h}', String(hrs)).replace('{m}', String(mins))
+                : t.home.timeLeftM.replace('{m}', String(mins));
             })()}
           </span>
         </div>
@@ -195,7 +204,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Combo Indicator */}
         {combo > 3 && (
           <div className="absolute top-0 px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-black text-xs uppercase tracking-wider animate-bounce shadow-lg shadow-amber-500/40 z-20 pointer-events-none select-none">
-            {combo}x Combo! 🔥
+            {t.home.comboBadge.replace('{combo}', String(combo))}
           </div>
         )}
 
@@ -225,7 +234,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           >
             <img
               src={skin.image || '/images/hamster_mascot_default_1793717666154.jpg'}
-              alt={skin.name}
+              alt={localizedSkin.name}
               draggable={false}
               referrerPolicy="no-referrer"
               onError={(e) => {
@@ -278,7 +287,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {/* Tap Helper Hint */}
         <div className="mt-4 text-xs font-medium text-slate-400 text-center flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-          <span>+{stats.tapPower} per tap · {t.game.tapToEarn}</span>
+          <span>{t.home.perTapHint.replace('{power}', String(stats.tapPower))} · {t.game.tapToEarn}</span>
         </div>
       </div>
 
@@ -292,7 +301,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           <div className="text-slate-300 font-mono">
             {Math.floor(energy.current)} / {energy.max}
             <span className="text-[10px] text-emerald-400 ml-1.5 font-sans">
-              (+{energy.regenRatePerSec}/s)
+              (+{energy.regenRatePerSec} {t.leaderboard.perSec})
             </span>
           </div>
         </div>
