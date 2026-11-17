@@ -698,7 +698,7 @@ app.post('/api/game/tap-sync', (req: Request, res: Response) => {
 app.post('/api/game/score-submit', (req: Request, res: Response) => {
   const { playerId, gameKey, score } = req.body;
 
-  const validGames = ['rush', 'memory', 'puzzle', 'jump', 'quiz'];
+  const validGames = ['rush', 'memory', 'puzzle', 'jump', 'subway', 'quiz'];
   if (!validGames.includes(gameKey)) {
     return res.status(400).json({ error: 'Invalid game key' });
   }
@@ -764,30 +764,35 @@ app.get('/api/leaderboard/miners', async (_req: Request, res: Response) => {
 // ============================================================================
 
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        hmr: false,
-      },
-      appType: 'spa',
+  try {
+    if (process.env.NODE_ENV !== 'production') {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          hmr: false,
+        },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      app.use(express.static(path.resolve(__dirname, 'dist')));
+      app.get('*', (_req: Request, res: Response) => {
+        res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+      });
+    }
+
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      console.log(`HamsterPi Game Server running at http://0.0.0.0:${PORT}`);
     });
-    app.use(vite.middlewares);
-  } else {
-    app.use(express.static(path.resolve(__dirname, 'dist')));
-    app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.resolve(__dirname, 'dist', 'index.html'));
+
+    server.on('error', (err: NodeJS.ErrnoException) => {
+      console.error(`[Server Error] Failed to bind to 0.0.0.0:${PORT}:`, err.message);
     });
+  } catch (err) {
+    console.error('[Server Startup Fatal Error]:', err);
+    process.exit(1);
   }
-
-  const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`HamsterPi Game Server running at http://0.0.0.0:${PORT}`);
-  });
-
-  server.on('error', (err: NodeJS.ErrnoException) => {
-    console.error(`[Server Error] Failed to bind to 0.0.0.0:${PORT}:`, err.message);
-  });
 }
 
 startServer();

@@ -1235,7 +1235,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     dbService.recordTransaction({
       playerId: profile.id,
       amount: todayReward.points,
-      balanceAfter: balance.points + todayReward.points,
+      balanceAfter: latestStateRef.current.balance.points + todayReward.points,
       category: 'daily_reward',
       description: `Claimed Day ${todayReward.day} daily login streak reward`,
     });
@@ -1245,7 +1245,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, 50);
 
     return true;
-  }, [stats.loginStreak, stats.lastDailyClaimDate, balance.points, profile.id, saveGameStateNow]);
+  }, [stats.loginStreak, stats.lastDailyClaimDate, profile.id, saveGameStateNow]);
 
   // Submit Mini Game Result
   const submitMiniGameResult = useCallback(
@@ -1268,7 +1268,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         dbService.recordTransaction({
           playerId: profile.id,
           amount: rewardPoints,
-          balanceAfter: balance.points + rewardPoints,
+          balanceAfter: latestStateRef.current.balance.points + rewardPoints,
           category: 'minigame_reward',
           description: `Reward for ${gameKey} (Score: ${score})`,
           metadata: { gameKey, score },
@@ -1298,7 +1298,7 @@ export const GameProvider: React.FC<{ children: React.ReactNode }> = ({ children
         saveGameStateNow();
       }, 50);
     },
-    [balance.points, profile.id, saveGameStateNow]
+    [profile.id, saveGameStateNow]
   );
 
   // ============================================================================

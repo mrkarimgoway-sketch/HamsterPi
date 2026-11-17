@@ -182,6 +182,13 @@ const HamsterRushGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [timeLeft, setTimeLeft] = useState(30);
   const [score, setScore] = useState(0);
   const [grid, setGrid] = useState<(RushItem | null)[]>(Array(9).fill(null));
+  const submitResultRef = useRef(submitMiniGameResult);
+  const scoreRef = useRef(0);
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    submitResultRef.current = submitMiniGameResult;
+  }, [submitMiniGameResult]);
 
   // Game timer
   useEffect(() => {
@@ -200,51 +207,64 @@ const HamsterRushGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     return () => clearInterval(timer);
   }, [gameState]);
 
-  // Spawner loop
+  // Spawner loop (independent of grid updates so interval runs smoothly)
   useEffect(() => {
     if (gameState !== 'playing') return;
+    const activeTimers = new Set<ReturnType<typeof setTimeout>>();
 
     const spawnInterval = setInterval(() => {
-      const emptySlots = grid
-        .map((val, idx) => (val === null ? idx : null))
-        .filter((val): val is number => val !== null);
+      const rand = Math.random();
+      const itemType: 'coin' | 'seed' | 'bomb' =
+        rand < 0.5 ? 'coin' : rand < 0.8 ? 'seed' : 'bomb';
+      const points = itemType === 'coin' ? 15 : itemType === 'seed' ? 30 : -20;
+      const itemId = Date.now() + Math.random();
+      let spawnedSlot: number | null = null;
 
-      if (emptySlots.length > 0) {
-        const slot = emptySlots[Math.floor(Math.random() * emptySlots.length)];
-        const rand = Math.random();
-        const itemType: 'coin' | 'seed' | 'bomb' =
-          rand < 0.5 ? 'coin' : rand < 0.8 ? 'seed' : 'bomb';
-        const points = itemType === 'coin' ? 15 : itemType === 'seed' ? 30 : -20;
+      setGrid((prev) => {
+        const emptySlots = prev
+          .map((val, idx) => (val === null ? idx : null))
+          .filter((val): val is number => val !== null);
+        if (emptySlots.length === 0) return prev;
+        spawnedSlot = emptySlots[Math.floor(Math.random() * emptySlots.length)];
+        const next = [...prev];
+        next[spawnedSlot] = { id: itemId, type: itemType, points };
+        return next;
+      });
 
+      const disappearTimer = setTimeout(() => {
+        activeTimers.delete(disappearTimer);
+        if (spawnedSlot === null) return;
+        const slotToClear = spawnedSlot;
         setGrid((prev) => {
+          if (!prev[slotToClear] || prev[slotToClear]?.id !== itemId) return prev;
           const next = [...prev];
-          next[slot] = { id: Date.now() + Math.random(), type: itemType, points };
+          next[slotToClear] = null;
           return next;
         });
-
-        // Disappear after lifetime
-        setTimeout(() => {
-          setGrid((prev) => {
-            const next = [...prev];
-            next[slot] = null;
-            return next;
-          });
-        }, 1100 + Math.random() * 400);
-      }
+      }, 1100 + Math.random() * 400);
+      activeTimers.add(disappearTimer);
     }, 600);
 
-    return () => clearInterval(spawnInterval);
-  }, [gameState, grid]);
+    return () => {
+      clearInterval(spawnInterval);
+      activeTimers.forEach((id) => clearTimeout(id));
+      activeTimers.clear();
+    };
+  }, [gameState]);
 
-  // When gameover, submit points
+  // When gameover, submit points exactly once
   useEffect(() => {
-    if (gameState === 'gameover') {
-      const rewardPoints = Math.max(0, score * 8);
-      submitMiniGameResult('rush', score, rewardPoints);
+    if (gameState === 'gameover' && !submittedRef.current) {
+      submittedRef.current = true;
+      const finalScore = scoreRef.current;
+      const rewardPoints = Math.max(0, finalScore * 8);
+      submitResultRef.current('rush', finalScore, rewardPoints);
     }
-  }, [gameState, score, submitMiniGameResult]);
+  }, [gameState]);
 
   const startGame = () => {
+    scoreRef.current = 0;
+    submittedRef.current = false;
     setScore(0);
     setTimeLeft(30);
     setGrid(Array(9).fill(null));
@@ -258,10 +278,12 @@ const HamsterRushGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     if (item.type === 'bomb') {
       sounds.playError();
-      setScore((s) => Math.max(0, s - 20));
+      scoreRef.current = Math.max(0, scoreRef.current - 20);
+      setScore(scoreRef.current);
     } else {
       sounds.playCoin();
-      setScore((s) => s + item.points);
+      scoreRef.current += item.points;
+      setScore(scoreRef.current);
     }
 
     setGrid((prev) => {
@@ -677,8 +699,14 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const [score, setScore] = useState(0);
 
   const keysRef = useRef<{ left: boolean; right: boolean }>({ left: false, right: false });
+  const submitResultRef = useRef(submitMiniGameResult);
+
+  useEffect(() => {
+    submitResultRef.current = submitMiniGameResult;
+  }, [submitMiniGameResult]);
 
   const startGame = () => {
+    keysRef.current = { left: false, right: false };
     setIsPlaying(true);
     setGameOver(false);
     setScore(0);
@@ -787,7 +815,7 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         setIsPlaying(false);
         sounds.playError();
         const earned = Math.floor(currentAltitude * 1.5);
-        submitMiniGameResult('jump', currentAltitude, earned);
+        submitResultRef.current('jump', currentAltitude, earned);
         return;
       }
 
@@ -837,7 +865,7 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     animationId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animationId);
-  }, [isPlaying, submitMiniGameResult]);
+  }, [isPlaying]);
 
   return (
     <div className="flex flex-col items-center">
@@ -901,18 +929,22 @@ const HamsterJumpGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             <button
               onMouseDown={() => (keysRef.current.left = true)}
               onMouseUp={() => (keysRef.current.left = false)}
+              onMouseLeave={() => (keysRef.current.left = false)}
               onTouchStart={() => (keysRef.current.left = true)}
               onTouchEnd={() => (keysRef.current.left = false)}
-              className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold text-sm active:bg-purple-900/60"
+              onTouchCancel={() => (keysRef.current.left = false)}
+              className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold text-sm active:bg-purple-900/60 select-none"
             >
               ← Left
             </button>
             <button
               onMouseDown={() => (keysRef.current.right = true)}
               onMouseUp={() => (keysRef.current.right = false)}
+              onMouseLeave={() => (keysRef.current.right = false)}
               onTouchStart={() => (keysRef.current.right = true)}
               onTouchEnd={() => (keysRef.current.right = false)}
-              className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold text-sm active:bg-purple-900/60"
+              onTouchCancel={() => (keysRef.current.right = false)}
+              className="py-3 rounded-xl bg-slate-900 border border-slate-800 text-slate-200 font-bold text-sm active:bg-purple-900/60 select-none"
             >
               Right →
             </button>
@@ -961,6 +993,11 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const jumpVelRef = useRef<number>(0);
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const submitGuardRef = useRef<boolean>(false);
+  const submitResultRef = useRef(submitMiniGameResult);
+
+  useEffect(() => {
+    submitResultRef.current = submitMiniGameResult;
+  }, [submitMiniGameResult]);
 
   const moveLane = useCallback((dir: -1 | 1) => {
     targetLaneRef.current = Math.max(0, Math.min(2, targetLaneRef.current + dir)) as 0 | 1 | 2;
@@ -1192,7 +1229,7 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
         if (!submitGuardRef.current) {
           submitGuardRef.current = true;
           const reward = Math.max(150, Math.floor(currentScore * 4));
-          submitMiniGameResult('subway', currentScore, reward);
+          submitResultRef.current('subway', currentScore, reward);
           sounds.playFanfare();
         }
         setGameState('gameover');
@@ -1413,7 +1450,7 @@ const SubwayRunnerGame: React.FC<{ onBack: () => void }> = ({ onBack }) => {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, submitMiniGameResult]);
+  }, [gameState]);
 
   const handleCanvasTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
     const touch = e.touches[0];
